@@ -4,21 +4,20 @@
 \alias{fix.dates}
 \title{Fix dates}
 \usage{
-fix.dates(x, cent = "19", delim = c("/", "-"))
+fix.dates(x, cent = "19")
 }
 \arguments{
 \item{x}{A data.frame}
 
 \item{cent}{Fixes century}
-
-\item{delim}{Date separator}
 }
 \description{
 Fixes dates
 }
 \examples{
 mydata<-data.frame(Dates1=c("25/06/1983", "25-08/2014", "2001/11/01", "2008-10-01"),
-                   Dates2=c("01/01/85", "04/04/1982", "07/12-2016", "85-07/16"))
+                   Dates2=c("01/01/85", "04/04/1982", "07/12-2016", NA),
+                   Numeric1=rnorm(4))
 fix.dates(mydata)
 }
 

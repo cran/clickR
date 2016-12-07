@@ -4,7 +4,7 @@
 \alias{report.merModLmerTest}
 \title{Report from linear mixed model with pvalues}
 \usage{
-\method{report}{merModLmerTest}(x, file = NULL, type = "csv", digits = 3,
+\method{report}{merModLmerTest}(x, file = NULL, type = "word", digits = 3,
   digitspvals = 3, font = ifelse(Sys.info()["sysname"] == "Windows",
   "Arial", "Helvetica")[[1]], pointsize = 11, ...)
 }

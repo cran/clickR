@@ -11,7 +11,7 @@
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.lm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.lm<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                     font=ifelse(Sys.info()["sysname"]=="Windows", "Arial", "Helvetica")[[1]],
                     pointsize=11, ...){
   sx<-summary(x)
@@ -41,7 +41,7 @@ report.lm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.glm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.glm<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                      font=ifelse(Sys.info()["sysname"]=="Windows", "Arial", "Helvetica")[[1]],
                      pointsize=11, ...){
   sx<-summary(x)
@@ -75,7 +75,7 @@ report.glm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.coxph<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.coxph<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                        font=ifelse(Sys.info()["sysname"]=="Windows", "Arial", "Helvetica")[[1]],
                        pointsize=11, ...){
   sx<-summary(x)
@@ -106,7 +106,7 @@ report.coxph<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.merModLmerTest<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.merModLmerTest<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                                 font=ifelse(Sys.info()["sysname"] == "Windows", "Arial",
                                             "Helvetica")[[1]], pointsize=11, ...){
   sx=lmerTest::summary(x)
@@ -142,7 +142,7 @@ report.merModLmerTest<-function(x, file=NULL, type="csv", digits=3, digitspvals=
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.lmerMod<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.lmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                          font=ifelse(Sys.info()["sysname"] == "Windows", "Arial",
                                      "Helvetica")[[1]], pointsize=11, ...){
   x<-lmerTest::lmer(x@call,data=x@frame)
@@ -162,7 +162,7 @@ report.lmerMod<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.glmerMod<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.glmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                           font=ifelse(Sys.info()["sysname"] == "Windows", "Arial",
                                       "Helvetica")[[1]], pointsize=11, ...){
   sx<-summary(x)
@@ -201,7 +201,7 @@ report.glmerMod<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.lqmm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.lqmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                       font=ifelse(Sys.info()["sysname"] == "Windows", "Arial",
                                   "Helvetica")[[1]], pointsize=11, ...){
   sx<-lqmm::summary.lqmm(x, ...)
@@ -234,7 +234,7 @@ report.lqmm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.clm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.clm<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                      font=ifelse(Sys.info()["sysname"] == "Windows", "Arial",
                                  "Helvetica")[[1]], pointsize=11, ...){
   sx<-summary(x)
@@ -268,7 +268,7 @@ report.clm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.clmm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.clmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                       font=ifelse(Sys.info()["sysname"] == "Windows", "Arial",
                                   "Helvetica")[[1]], pointsize=11, ...){
   sx<-summary(x)
@@ -310,7 +310,7 @@ report.clmm<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.rq<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.rq<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                     font=ifelse(Sys.info()["sysname"]=="Windows", "Arial", "Helvetica")[[1]],
                     pointsize=11, ...){
   sx<-summary(x)
@@ -341,7 +341,7 @@ report.rq<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @export
-report.betareg<-function(x, file=NULL, type="csv", digits=3, digitspvals=3,
+report.betareg<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
                          font=ifelse(Sys.info()["sysname"]=="Windows", "Arial", "Helvetica")[[1]],
                          pointsize=11, ...){
   sx<-summary(x)
@@ -423,9 +423,9 @@ make_csv_table <- function(x, file){
 #' @return Creates a file with the table
 #' @export
 make_table<-function(x, file, type, font, pointsize, add.rownames=TRUE){
-  if(type=="word") make_word_table(x, pointsize, font, file, add.rownames = add.rownames)
-  if(type=="latex") make_latex_table(x, file)
-  else make_csv_table(x, file)
+  if(type=="csv") {make_csv_table(x, file)}
+  if(type=="latex") {make_latex_table(x, file)}
+  if(is.null(type) | type=="word") {make_word_table(x, pointsize, font, file, add.rownames = add.rownames)}
   message(paste0("Exported table as ", file))
 }
 
@@ -440,3 +440,27 @@ make_table<-function(x, file, type, font, pointsize, add.rownames=TRUE){
 report<-function(x, ...){
   UseMethod("report")
 }
+
+
+#' Report from numeric variable
+#'
+#' @description Creates a report table
+#' @param x A numeric variable
+#' @param ... Further arguments passed to make_table
+#' @return A data frame with the report table
+#' @export
+report.numeric<-function(x,...){
+  report(data.frame(x))
+}
+
+#' Report from categorical variable
+#'
+#' @description Creates a report table
+#' @param x A categorical variable
+#' @param ... Further arguments passed to make_table
+#' @return A data frame with the report table
+#' @export
+report.factor<-function(x,...){
+  report(data.frame(x))
+}
+

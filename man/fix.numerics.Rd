@@ -5,7 +5,7 @@
 \title{Fix numeric data}
 \usage{
 fix.numerics(x, k = 8, decimal = c(",", " ", "\\\\.\\\\.", ",,", "\\\\.,",
-  ",\\\\."))
+  ",\\\\.", "\\\\."))
 }
 \arguments{
 \item{x}{A data.frame}

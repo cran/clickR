@@ -1,0 +1,7 @@
+clickR 0.1.12 (Release date: 2016-12-07)
+==============
+
+Changes:
+
+* Improved behaviour of fix.numerics(), fix.dates() and fix.factors() functions.
+* Fixed a bug in report() that was generating duplicated files when exporting to word.

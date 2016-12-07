@@ -4,7 +4,7 @@
 \alias{report.lm}
 \title{Report from linear model}
 \usage{
-\method{report}{lm}(x, file = NULL, type = "csv", digits = 3,
+\method{report}{lm}(x, file = NULL, type = "word", digits = 3,
   digitspvals = 3, font = ifelse(Sys.info()["sysname"] == "Windows",
   "Arial", "Helvetica")[[1]], pointsize = 11, ...)
 }

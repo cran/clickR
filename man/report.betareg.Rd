@@ -4,7 +4,7 @@
 \alias{report.betareg}
 \title{Report from beta regression model}
 \usage{
-\method{report}{betareg}(x, file = NULL, type = "csv", digits = 3,
+\method{report}{betareg}(x, file = NULL, type = "word", digits = 3,
   digitspvals = 3, font = ifelse(Sys.info()["sysname"] == "Windows",
   "Arial", "Helvetica")[[1]], pointsize = 11, ...)
 }

@@ -360,7 +360,7 @@ mtapply <- function(x, group, fun){
 #' report(mtcars)
 #' report(fix.factors(mtcars))
 fix.factors<-function(x, k=5, drop=TRUE){
-  x[, (sapply(x, function(x) is.numeric(x) & length(unique(x))<=k)) | (sapply(x, function(x) is.factor(x)))]<-lapply(x[, sapply(x, function(x) is.numeric(x) & length(unique(x))<=k) | (sapply(x, function(x) is.factor(x))), drop=FALSE], function(x) if(drop) factor(iconv(droplevels(as.factor(tolower(as.character(x)))), to="ASCII//TRANSLIT")) else factor(x))
+  x[, (sapply(x, function(x) is.numeric(x) & length(unique(x))<=k)) | (sapply(x, function(x) is.factor(x)))]<-lapply(x[, sapply(x, function(x) is.numeric(x) & length(unique(x))<=k) | (sapply(x, function(x) is.factor(x))), drop=FALSE], function(x) if(drop) factor(iconv(droplevels(as.factor(gsub("^ *|(?<= ) | *$", "", tolower(as.character(x)), perl=TRUE))), to="ASCII//TRANSLIT")) else factor(x))
   return(x)
 }
 
@@ -376,9 +376,9 @@ fix.factors<-function(x, k=5, drop=TRUE){
 #'                    Numeric2=c(3.1, 1.2, "3.s4", "a48,s5", 7, "6,,4"))
 #' report(mydata)
 #' report(fix.numerics(mydata, k=5))
-fix.numerics<-function(x, k=8, decimal=c(",", " ", "\\.\\.", ",,", "\\.,", ",\\.")){
+fix.numerics<-function(x, k=8, decimal=c(",", " ", "\\.\\.", ",,", "\\.,", ",\\.", "\\.")){
   previous.NA<- sapply(x, function(x) sum(is.na(x)))
-  x[, apply(sapply(x, function(x) grepl(paste(decimal, collapse="|"), as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x)) & sapply(x, function(x) length(unique(x))>=k)] <- sapply(x[, apply(sapply(x, function(x) grepl(paste(decimal, collapse="|"), as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x))  & sapply(x, function(x) length(unique(x))>=k), drop=FALSE], function(x) as.numeric(gsub(paste(decimal, collapse="|"), ".", gsub("[A-Za-z]", "", as.character(x)))))
+  x[, apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x)) & sapply(x, function(x) length(unique(x))>=k)] <- sapply(x[, apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x))  & sapply(x, function(x) length(unique(x))>=k), drop=FALSE], function(x) as.numeric(gsub(paste(decimal, collapse="|"), ".", gsub("[A-Za-z]", "", as.character(x)))))
   final.NA<-sum(sapply(x, function(x) sum(is.na(x)))-previous.NA)
   warning(final.NA, " new missing values generated")
   return(x)
@@ -390,15 +390,15 @@ fix.numerics<-function(x, k=8, decimal=c(",", " ", "\\.\\.", ",,", "\\.,", ",\\.
 #' @description Fixes dates
 #' @param x A data.frame
 #' @param cent Fixes century
-#' @param delim Date separator
 #' @export
 #' @examples
 #' mydata<-data.frame(Dates1=c("25/06/1983", "25-08/2014", "2001/11/01", "2008-10-01"),
-#'                    Dates2=c("01/01/85", "04/04/1982", "07/12-2016", "85-07/16"))
+#'                    Dates2=c("01/01/85", "04/04/1982", "07/12-2016", NA),
+#'                    Numeric1=rnorm(4))
 #' fix.dates(mydata)
-fix.dates<-function(x, cent="19", delim=c("/", "-")){
+fix.dates<-function(x, cent="19"){
   previous.NA<- sapply(x, function(x) sum(is.na(x)))
-  x[, apply(sapply(x, function(x) grepl(paste(delim, collapse="|"), as.character(x))), 2, any)] <- lapply(x[, apply(sapply(x, function(x) grepl(paste(delim, collapse="|"), as.character(x))), 2, any), drop=FALSE], function(x) as.Date(gsub("(?<![0-9])0{2}+", cent, perl=TRUE, as.Date(sapply(strsplit(gsub("/", "-", as.character(x)), "-"), function(x) if(!as.numeric(x[1])>31) paste(rev(x), collapse="-") else paste(x, collapse="-"))))))
+  x[, apply(sapply(x, function(x)   grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any)] <- lapply(x[, apply(sapply(x, function(x)   grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any), drop=FALSE], function(x) as.Date(gsub("(?<![0-9])0{2}+", cent, perl=TRUE, as.Date(sapply(strsplit(gsub("/", "-", as.character(x)), "-"), function(x) if(is.na(x[1])) NA else if (!as.numeric(x[1])>31)  paste(rev(x), collapse="-") else paste(x, collapse="-"))))))
   final.NA<-sum(sapply(x, function(x) sum(is.na(x)))-previous.NA)
   warning(final.NA, " new missing values generated")
   return(x)

@@ -4,7 +4,7 @@
 \alias{report.lqmm}
 \title{Report from quantile mixed model}
 \usage{
-\method{report}{lqmm}(x, file = NULL, type = "csv", digits = 3,
+\method{report}{lqmm}(x, file = NULL, type = "word", digits = 3,
   digitspvals = 3, font = ifelse(Sys.info()["sysname"] == "Windows",
   "Arial", "Helvetica")[[1]], pointsize = 11, ...)
 }
