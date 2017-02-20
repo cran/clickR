@@ -371,7 +371,7 @@ report.betareg<-function(x, file=NULL, type="word", digits=3, digitspvals=3,
 #' @param add.rownames Should rownames be added to the output?
 #' @return Creates a word with the table
 #' @export
-make_word_table <- function(x, pointsize, font, file, add.rownames=add.rownames){
+make_word_table <- function(x, pointsize, font, file, add.rownames){
   mydoc <- ReporteRs::docx()
   MyFTable= ReporteRs::FlexTable(data.frame(x, check.names=FALSE, stringsAsFactors=FALSE),
                                  add.rownames=add.rownames,header.text.props=ReporteRs::textProperties(font.size=pointsize,
@@ -422,7 +422,7 @@ make_csv_table <- function(x, file){
 #' @param add.rownames Should rownames be added to the output?
 #' @return Creates a file with the table
 #' @export
-make_table<-function(x, file, type, font, pointsize, add.rownames=TRUE){
+make_table<-function(x, file, type, font="Arial", pointsize=11, add.rownames=TRUE){
   if(type=="csv") {make_csv_table(x, file)}
   if(type=="latex") {make_latex_table(x, file)}
   if(is.null(type) | type=="word") {make_word_table(x, pointsize, font, file, add.rownames = add.rownames)}
@@ -450,7 +450,7 @@ report<-function(x, ...){
 #' @return A data frame with the report table
 #' @export
 report.numeric<-function(x,...){
-  report(data.frame(x))
+  report(data.frame(x), ...)
 }
 
 #' Report from categorical variable
@@ -461,6 +461,6 @@ report.numeric<-function(x,...){
 #' @return A data frame with the report table
 #' @export
 report.factor<-function(x,...){
-  report(data.frame(x))
+  report(data.frame(x), ...)
 }
 

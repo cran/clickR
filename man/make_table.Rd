@@ -4,7 +4,8 @@
 \alias{make_table}
 \title{Make a table from report}
 \usage{
-make_table(x, file, type, font, pointsize, add.rownames = TRUE)
+make_table(x, file, type, font = "Arial", pointsize = 11,
+  add.rownames = TRUE)
 }
 \arguments{
 \item{x}{A data.frame object}

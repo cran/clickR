@@ -4,7 +4,7 @@
 \alias{make_word_table}
 \title{Export a table to word}
 \usage{
-make_word_table(x, pointsize, font, file, add.rownames = add.rownames)
+make_word_table(x, pointsize, font, file, add.rownames)
 }
 \arguments{
 \item{x}{A data.frame object}

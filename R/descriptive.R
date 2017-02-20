@@ -329,7 +329,7 @@ report.data.frame<-function(x, by=NULL, file=NULL, type="word",
 
   #Matrix binding
   output<-rbind(estruct, AB, cats)
-  colnames(output)<-c("Variable", paste(by, levels(by_v), sep=" "))
+  colnames(output)<-c("Variable", paste(by, levels(by_v), sep=" ", "n =", as.vector(table(by_v))))
 
   if(!is.null(file)) make_table(output, file, type, font, pointsize, add.rownames)
   return(print(data.frame(output, check.names=FALSE, stringsAsFactors=FALSE), row.names=FALSE, right=FALSE))
@@ -378,10 +378,10 @@ fix.factors<-function(x, k=5, drop=TRUE){
 #' report(fix.numerics(mydata, k=5))
 fix.numerics<-function(x, k=8, decimal=c(",", " ", "\\.\\.", ",,", "\\.,", ",\\.", "\\.")){
   previous.NA<- sapply(x, function(x) sum(is.na(x)))
-  x[, apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x)) & sapply(x, function(x) length(unique(x))>=k)] <- sapply(x[, apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x))  & sapply(x, function(x) length(unique(x))>=k), drop=FALSE], function(x) as.numeric(gsub(paste(decimal, collapse="|"), ".", gsub("[A-Za-z]", "", as.character(x)))))
+  x[, apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x)) & sapply(x, function(x) length(unique(x))>=k)] <- sapply(x[, apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x))  & sapply(x, function(x) length(unique(x))>=k), drop=FALSE], function(x) numeros(x))
   final.NA<-sum(sapply(x, function(x) sum(is.na(x)))-previous.NA)
   warning(final.NA, " new missing values generated")
-  return(x)
+  return(x[,1:(dim(x)[2]), drop=TRUE])
 }
 
 
