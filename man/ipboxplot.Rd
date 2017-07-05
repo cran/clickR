@@ -20,4 +20,3 @@ Creates an improved boxplot with individual data points
 ipboxplot(Sepal.Length ~ Species, data=iris)
 ipboxplot(mpg ~ gear, data=mtcars)
 }
-

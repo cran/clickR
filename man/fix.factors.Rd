@@ -20,4 +20,3 @@ Fixes factors imported as numerics
 report(mtcars)
 report(fix.factors(mtcars))
 }
-

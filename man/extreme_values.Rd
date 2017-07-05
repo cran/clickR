@@ -19,4 +19,3 @@ A matrix with the lowest and highest values from a vector
 \description{
 Returns the nth lowest and highest values from a vector
 }
-

@@ -26,4 +26,3 @@ Creates a file with the table
 \description{
 Auxiliary function to create tables
 }
-

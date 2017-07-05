@@ -15,4 +15,3 @@ A logical vector
 \description{
 Makes possible logical comparisons against NULL values
 }
-

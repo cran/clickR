@@ -28,4 +28,3 @@ A list of a data.frame with information about data quality of the variable
 \description{
 Returns different data quality details of a numeric or categorical variable
 }
-

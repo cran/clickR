@@ -19,4 +19,3 @@ Modification of the tapply function to use with data.frames
 \examples{
 mtapply(mtcars, mtcars$gear, mean)
 }
-

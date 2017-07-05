@@ -17,4 +17,3 @@ A data frame with the report table
 \description{
 Generic function for reporting of models
 }
-

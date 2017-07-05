@@ -15,4 +15,3 @@ A logical vector
 \description{
 Checks if each value from a vector might be numeric
 }
-

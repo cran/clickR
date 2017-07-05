@@ -15,7 +15,7 @@
 #' @examples
 #' descriptivo(iris)
 #' descriptivo(iris, by="Species")
-descriptivo<-function(x, z=3, graph=ifelse(length(data.frame(x))>20, F, T), ignore.na=T, by=NULL){
+descriptivo<-function(x, z=3, graph=ifelse(length(data.frame(x))>20, FALSE, TRUE), ignore.na=T, by=NULL){
   summary1<-summary2<-NULL
   #Data.frame
   if(is.data.frame(x)==F){
@@ -263,8 +263,14 @@ report.data.frame<-function(x, by=NULL, file=NULL, type="word",
                             add.rownames=FALSE, ...){
   if(is.data.frame(x)==F){
     x<-data.frame(x)}
-  x<-x[,!sapply(x, function(x) sum(is.na(x))/length(x))==1, drop=FALSE]
+  x<-x[,!sapply(x, function(x) sum(is.na(x))/length(x))==1 & sapply(x, function(x) is.numeric(x) | is.factor(x)), drop=FALSE]
   x[sapply(x, is.factor) & sapply(x, function(x) !all(levels(x) %in% unique(na.omit(x))))]<-lapply(x[sapply(x, is.factor) & sapply(x, function(x) !all(levels(x) %in% unique(na.omit(x))))], factor)
+  if(length(by)>1){
+    x.int <- data.frame(x, by=interaction(x[, match(unlist(by), names(x))]))
+    report(x.int[,-match(unlist(by), names(x.int))], by="by", file=file, type=type, font=font,
+           pointsize=pointsize, add.rownames=add.rownames, ...)
+  }
+  else{
   by_v <- factor(rep("", nrow(x)))
   if(!is.null(by)){
     pos_by<-match(by, names(x))
@@ -333,6 +339,7 @@ report.data.frame<-function(x, by=NULL, file=NULL, type="word",
 
   if(!is.null(file)) make_table(output, file, type, font, pointsize, add.rownames)
   return(print(data.frame(output, check.names=FALSE, stringsAsFactors=FALSE), row.names=FALSE, right=FALSE))
+  }
 }
 
 #' Multiple tapply
@@ -360,7 +367,7 @@ mtapply <- function(x, group, fun){
 #' report(mtcars)
 #' report(fix.factors(mtcars))
 fix.factors<-function(x, k=5, drop=TRUE){
-  x[, (sapply(x, function(x) is.numeric(x) & length(unique(x))<=k)) | (sapply(x, function(x) is.factor(x)))]<-lapply(x[, sapply(x, function(x) is.numeric(x) & length(unique(x))<=k) | (sapply(x, function(x) is.factor(x))), drop=FALSE], function(x) if(drop) factor(iconv(droplevels(as.factor(gsub("^ *|(?<= ) | *$", "", tolower(as.character(x)), perl=TRUE))), to="ASCII//TRANSLIT")) else factor(x))
+  x[, (sapply(x, function(x) (is.numeric(x) | is.character(x)) & length(unique(x))<=k)) | (sapply(x, function(x) is.factor(x)))]<-lapply(x[, sapply(x, function(x) (is.numeric(x)|is.character(x)) & length(unique(x))<=k) | (sapply(x, function(x) is.factor(x))), drop=FALSE], function(x) if(drop) factor(iconv(droplevels(as.factor(gsub("^ *|(?<= ) | *$", "", tolower(as.character(x)), perl=TRUE))), to="ASCII//TRANSLIT")) else factor(x))
   return(x)
 }
 
@@ -369,19 +376,27 @@ fix.factors<-function(x, k=5, drop=TRUE){
 #' @description Fixes numeric data
 #' @param x A data.frame
 #' @param k Minimum number of different values to be considered numerical
-#' @param decimal Vector of decimal separators
+#' @param max.NA Maximum allowed proportion of NA values created by coercion
+#' @param info Add generated missing values an excluded variable information as attributes
 #' @export
 #' @examples
 #' mydata<-data.frame(Numeric1=c(7.8, 9.2, 5.4, 3.3, "6,8", "3..3"),
 #'                    Numeric2=c(3.1, 1.2, "3.s4", "a48,s5", 7, "6,,4"))
 #' report(mydata)
 #' report(fix.numerics(mydata, k=5))
-fix.numerics<-function(x, k=8, decimal=c(",", " ", "\\.\\.", ",,", "\\.,", ",\\.", "\\.")){
+fix.numerics<-function(x, k=8, max.NA=0.2, info=TRUE){
+  x.old<-x
   previous.NA<- sapply(x, function(x) sum(is.na(x)))
   x[, apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x)) & sapply(x, function(x) length(unique(x))>=k)] <- sapply(x[, apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !is.numeric(x))  & sapply(x, function(x) length(unique(x))>=k), drop=FALSE], function(x) numeros(x))
-  final.NA<-sum(sapply(x, function(x) sum(is.na(x)))-previous.NA)
-  warning(final.NA, " new missing values generated")
-  return(x[,1:(dim(x)[2]), drop=TRUE])
+  final.NA<-sapply(x, function(x) sum(is.na(x)))-previous.NA
+  x[,(final.NA-previous.NA) > nrow(x)*max.NA]<-x.old[,(final.NA-previous.NA) > nrow(x)*max.NA]
+  print(paste(sum(sapply(x, function(x) sum(is.na(x)))-previous.NA), "new missing values generated"))
+  print(paste(sum((final.NA-previous.NA) > nrow(x)*max.NA), "variables excluded following max.NA criterion"))
+  if(info){
+    attr(x, "missing") <- (sapply(x, function(x) sum(is.na(x)))-previous.NA)
+    attr(x, "excluded") <- (final.NA-previous.NA) > nrow(x)*max.NA
+  }
+  return(x)
 }
 
 
@@ -396,11 +411,14 @@ fix.numerics<-function(x, k=8, decimal=c(",", " ", "\\.\\.", ",,", "\\.,", ",\\.
 #'                    Dates2=c("01/01/85", "04/04/1982", "07/12-2016", NA),
 #'                    Numeric1=rnorm(4))
 #' fix.dates(mydata)
-fix.dates<-function(x, cent="19"){
-  previous.NA<- sapply(x, function(x) sum(is.na(x)))
-  x[, apply(sapply(x, function(x)   grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any)] <- lapply(x[, apply(sapply(x, function(x)   grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any), drop=FALSE], function(x) as.Date(gsub("(?<![0-9])0{2}+", cent, perl=TRUE, as.Date(sapply(strsplit(gsub("/", "-", as.character(x)), "-"), function(x) if(is.na(x[1])) NA else if (!as.numeric(x[1])>31)  paste(rev(x), collapse="-") else paste(x, collapse="-"))))))
-  final.NA<-sum(sapply(x, function(x) sum(is.na(x)))-previous.NA)
-  warning(final.NA, " new missing values generated")
+fix.dates <- function (x, cent = "19"){
+  previous.NA <- sapply(x, function(x) sum(is.na(x)))
+  x[, apply(sapply(x, function(x) grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any)] <- lapply(x[, apply(sapply(x,
+      function(x) grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any), drop = FALSE],
+      function(x) as.Date(gsub("(?<![0-9])0{2}+", cent, perl = TRUE, as.Date(sapply(strsplit(gsub("/", "-", as.character(x)), "-"),
+      function(x) if (is.na(x[1]) | is.na(as.numeric(x[1]))) NA else if (!as.numeric(x[1]) > 31) paste(rev(x), collapse = "-") else paste(x, collapse = "-"))))))
+  final.NA <- sum(sapply(x, function(x) sum(is.na(x))) - previous.NA)
+  print(paste(final.NA, "new missing values generated"))
   return(x)
 }
 
@@ -441,4 +459,73 @@ fix.levels<-function(x, levels=NULL, plot=FALSE, k=ifelse(!is.null(levels), leng
   } else{
     return(groups)
   }
+}
+
+
+#' Peek
+#'
+#' @description Takes a peek into a data.frame returning a concise visualization about it
+#' @param x A data.frame
+#' @param n Number of rows to include in output
+#' @param which Columns to include in output
+#' @importFrom utils head
+#' @export
+#' @examples
+#' peek(iris)
+peek <- function(x, n=10, which=1:ncol(x)){
+  class <- sapply(x[,which], class)
+  range <- paste("(", sapply(x[,which], function(x) {
+    if(class(x) %in% c("character", "factor")){
+      length(unique(x))
+    }
+    else if(is.numeric(x)){
+      paste(range(x), collapse="-")
+    }
+    else {
+      ""
+    }
+  }
+  ), ")", sep="")
+  cat("Data frame with ", nrow(x), " rows (showing ", length(which), " of ", ncol(x), " variables) \n \n")
+  print(rbind(as.matrix(head(x[,which], n)), rep("", ncol(x[,which])), class, range), quote = FALSE)
+}
+
+#' Nice names
+#'
+#' @description Changes names of a data frame to ease work with them
+#' @param dat A data.frame
+#' @export
+#' @examples
+#' d <- data.frame('Variable 1'=NA, '% Response'=NA, ' Variable     3'=NA,check.names=FALSE)
+#' names(d)
+#' names(nice_names(d))
+nice_names<-function (dat){
+  old_names <- names(dat)
+  new_names <- gsub("x_","",gsub("_$", "",tolower(gsub("[_]+", "_",gsub("[.]+", "_",make.names(
+    gsub("^[ ]+", "",gsub("%", "percent",gsub("\"", "",gsub("'", "",gsub("\u00BA", "", old_names)))))))))))
+  dupe_count <- sapply(1:length(new_names), function(i) {
+    sum(new_names[i] == new_names[1:i])
+  })
+  new_names[dupe_count > 1] <- paste(new_names[dupe_count >
+                                                 1], dupe_count[dupe_count > 1], sep = "_")
+  new_names <- iconv(new_names, to = "ASCII//TRANSLIT")
+  stats::setNames(dat, new_names)
+}
+
+
+#' Kill factors
+#'
+#' @description Changes factor variables to character
+#' @param dat A data.frame
+#' @param k Maximum number of levels for factors
+#' @export
+#' @examples
+#' d <- data.frame(Letters=letters[1:20], Nums=1:20)
+#' d$Letters
+#' d <- kill.factors(d)
+#' d$Letters
+kill.factors <- function(dat, k=10){
+  filter <- sapply(dat, function(x) is.factor(x) & length(levels(x))>k)
+  dat[filter] <- lapply(dat[filter], as.character)
+  return(dat)
 }

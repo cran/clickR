@@ -31,4 +31,3 @@ A data frame with the report table
 \description{
 Creates a report table from a linear model
 }
-

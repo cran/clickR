@@ -20,4 +20,3 @@ mydata<-data.frame(Dates1=c("25/06/1983", "25-08/2014", "2001/11/01", "2008-10-0
                    Numeric1=rnorm(4))
 fix.dates(mydata)
 }
-

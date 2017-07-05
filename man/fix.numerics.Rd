@@ -4,15 +4,16 @@
 \alias{fix.numerics}
 \title{Fix numeric data}
 \usage{
-fix.numerics(x, k = 8, decimal = c(",", " ", "\\\\.\\\\.", ",,", "\\\\.,",
-  ",\\\\.", "\\\\."))
+fix.numerics(x, k = 8, max.NA = 0.2, info = TRUE)
 }
 \arguments{
 \item{x}{A data.frame}
 
 \item{k}{Minimum number of different values to be considered numerical}
 
-\item{decimal}{Vector of decimal separators}
+\item{max.NA}{Maximum allowed proportion of NA values created by coercion}
+
+\item{info}{Add generated missing values an excluded variable information as attributes}
 }
 \description{
 Fixes numeric data
@@ -23,4 +24,3 @@ mydata<-data.frame(Numeric1=c(7.8, 9.2, 5.4, 3.3, "6,8", "3..3"),
 report(mydata)
 report(fix.numerics(mydata, k=5))
 }
-

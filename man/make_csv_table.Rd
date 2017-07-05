@@ -17,4 +17,3 @@ Creates a .csv file with the table
 \description{
 Exports a table to Excel
 }
-

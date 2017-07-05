@@ -12,4 +12,3 @@ is.it(x)
 \description{
 Internal function for mine.plot
 }
-

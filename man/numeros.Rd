@@ -15,4 +15,3 @@ A numeric vector
 \description{
 If possible, coerces values from a vector to numeric
 }
-

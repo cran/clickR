@@ -27,4 +27,3 @@ Creates a heatmap-like plot for exploring the data
 mine.plot(airquality)   #Displays missing data
 mine.plot(airquality, what="x>mean(x)+2*sd(x) | x<mean(x)-2*sd(x)")   #Shows extreme values
 }
-

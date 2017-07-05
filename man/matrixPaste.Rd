@@ -14,4 +14,3 @@ matrixPaste(..., sep = rep(" ", length(list(...)) - 1))
 \description{
 Internal function for report.table
 }
-

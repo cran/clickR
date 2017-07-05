@@ -33,4 +33,3 @@ report(iris)
 (reporTable<-report(iris, by="Species"))
 class(reporTable)
 }
-

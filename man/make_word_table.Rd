@@ -23,4 +23,3 @@ Creates a word with the table
 \description{
 Exports a table to Word
 }
-

@@ -17,4 +17,3 @@ Creates a .txt file with latex code for the table
 \description{
 Exports a table to latex
 }
-
