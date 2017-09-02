@@ -1,28 +1,138 @@
+#' Defunct function for creating data summaries
+#'
+#' @description Creates a detailed summary of the data
+#' @param x A data.frame
+#' @return Nothing, the function is defunct. Use descriptive() instead.
+#' @export
+descriptivo<-function(x){
+  .Defunct("descriptive() (for descriptives) or cluster_var() (for variable clustering)")
+}
+
+#' Computes kurtosis
+#'
+#' @description Calculates kurtosis of a numeric variable
+#' @param x A numeric variable
+#' @return kurtosis value
+#' @importFrom stats sd
+kurtosis <- function(x) {
+  m4 <- mean((x-mean(x, na.rm=T))^4, na.rm=T)
+  kurt <- m4/(sd(x, na.rm=T)^4)-3
+  kurt
+}
+
+#' Computes skewness
+#'
+#' @description Calculates skewness of a numeric variable
+#' @param x A numeric variable
+#' @return skewness value
+#' @importFrom stats sd
+skewness <-  function(x) {
+  m3 <- mean((x-mean(x, na.rm=T))^3, na.rm=T)
+  skew <- m3/(sd(x, na.rm=T)^3)
+  skew
+}
+
+#' Estimates number of modes
+#'
+#' @description Estimates the number of modes
+#' @param x A numeric variable
+#' @return Estimated number of modes. If unclear, marked with an '*'
+#' @importFrom stats density
+moda_cont <- function(x) {
+  if(length(na.omit(x))>1){
+    modas2 <- sum(diff(diff(density(x, adjust=2, na.rm=T)$y)>=0)<0)
+    modas1 <- sum(diff(diff(density(x, adjust=1, na.rm=T)$y)>=0)<0)
+    if(modas1!=modas2 & modas2==1)
+      return("1*")
+    else
+      return(paste(modas2, " ", sep=""))
+  }
+  else return(NA)
+}
+
+#' Scales data between 0 and 1
+#'
+#' @description Escale data to 0-1
+#' @param x A numeric variable
+#' @return Scaled data
+scale_01 <- function(x) (x-min(x))/(max(x)-min(x))
+
+#' Internal function for descriptive()
+#'
+#' @description Finds positions for substitution of characters in Distribution column
+#' @param x A numeric value between 0-1
+#' @param to Range of reference values
+#' @return The nearest position to the input value
+nearest <- function(x, to=seq(0, 1, length.out = 30)) {
+  which.min(abs(to - x))
+}
+
+#' Get mode
+#'
+#' @description Returns the most repeated value
+#' @param x A categorical variable
+#' @return The mode
+moda<-function(x){names(sort(-table(x)))[1]}
+
+#' Get anti-mode
+#'
+#' @description Returns the least repeated value
+#' @param x A categorical variable
+#' @return The anti-mode (least repeated value)
+antimoda<-function(x){names(sort(table(x)))[1]}
+
+#' Gets proportion of most repeated value
+#'
+#' @description Returns the proportion for the most repeated value
+#' @param x A categorical variable
+#' @param ignore.na Should NA values be ignored for computing proportions?
+#' @return A proportion
+prop_may<-function(x, ignore.na=TRUE) {sort(-table(x))[1]/-(length(x)-ignore.na*sum(is.na(x)))}
+
+#' Gets proportion of least repeated value
+#'
+#' @description Returns the proportion for the least repeated value
+#' @param x A categorical variable
+#' @param ignore.na Should NA values be ignored for computing proportions?
+#' @return A proportion
+prop_min<-function(x, ignore.na=TRUE){sort(table(x))[1]/(length(x)-ignore.na*sum(is.na(x)))}
+
+
+#' Computes Goodman and Kruskal's tau
+#'
+#' @description Returns Goodman and Kruskal's tay measure of association between two categorical variables
+#' @param x A categorical variable
+#' @param y A categorical variable
+#' @return Goodman and Kruskal's tau
+#' @export
+GK_assoc <- function(x, y){
+  Nij <- table(x, y)
+  vx <- 1 - sum(rowSums(Nij/sum(Nij))^2)
+  vy <- 1 - sum(colSums(Nij/sum(Nij))^2)
+  d <- 1 - sum(rowSums((Nij/sum(Nij))^2)/rowSums(Nij/sum(Nij)))
+  tau <- (vy - d)/vy
+  return(tau)
+}
+
 #' Detailed summary of the data
 #'
 #' @description Creates a detailed summary of the data
 #' @param x A data.frame
 #' @param z Number of decimal places
-#' @param graph If TRUE displays a graph of variable clustering
 #' @param ignore.na If TRUE NA values will not count for relative frequencies calculations
 #' @param by Factor variable definining groups for the summary
 #' @return Summary of the data
-#' @importFrom grDevices colorRampPalette rgb
-#' @importFrom graphics axis boxplot image mtext par plot
-#' @importFrom stats AIC confint cutree density dist family hclust median na.omit quantile rect.hclust sd var
-#' @importFrom utils write.csv2
+#' @importFrom stats density dist family median na.omit quantile sd var
 #' @export
 #' @examples
-#' descriptivo(iris)
-#' descriptivo(iris, by="Species")
-descriptivo<-function(x, z=3, graph=ifelse(length(data.frame(x))>20, FALSE, TRUE), ignore.na=T, by=NULL){
-  summary1<-summary2<-NULL
+#' descriptive(iris)
+#' descriptive(iris, by="Species")
+descriptive<-function(x, z=3, ignore.na=TRUE, by=NULL){
   #Data.frame
-  if(is.data.frame(x)==F){
+  if(is.data.frame(x)==FALSE){
     x<-data.frame(x)}
-  x<-x[,!sapply(x, function(x) sum(is.na(x))/length(x))==1]
-  if(is.data.frame(x)==F){
-    x<-data.frame(x)}
+  x<-x[,!sapply(x, function(x) all(is.na(x)))]
+
   if(!is.null(by))
   {
     if (by %in% names(x))
@@ -33,7 +143,7 @@ descriptivo<-function(x, z=3, graph=ifelse(length(data.frame(x))>20, FALSE, TRUE
       names(x_sin) <- names(x)[-pos_by]
       if (length(x_sin)==0)
       {
-        descriptivo(x,z,graph,ignore.na,by=NULL)
+        descriptive(x,z,ignore.na,by=NULL)
         stop("Only one variable in the data. Can't be used as grouping variable")
       }
     }
@@ -45,7 +155,7 @@ descriptivo<-function(x, z=3, graph=ifelse(length(data.frame(x))>20, FALSE, TRUE
 
     if (length(by_v)!=dim(x_sin)[1] | is.numeric(by_v))
     {
-      descriptivo(x=x,z=z,graph=graph,ignore.na=ignore.na,by=NULL)
+      descriptive(x=x,z=z,ignore.na=ignore.na,by=NULL)
       warning(gettextf("Variable %s does not have the same number of observations than the data or is not a factor.
                        Summary without grouping.", by))
     }
@@ -66,100 +176,79 @@ descriptivo<-function(x, z=3, graph=ifelse(length(data.frame(x))>20, FALSE, TRUE
         x_g <- x_sin[by_v==niveles[i],]
         cat("Level ", by, ": ", niveles[i], sep="")
         cat("\n")
-        descriptivo(x=x_g,z=z,graph=F,ignore.na=ignore.na,by=NULL)
+        descriptive(x=x_g,z=z,ignore.na=ignore.na,by=NULL)
         cat("\n")
         cat("-------------------------------")
         cat("\n")
       }
     }
     }
-  else
-  {
+  else{
+
     #Splitter (Splits data.frame: Numeric and categorical part)
     nums <- sapply(x, is.numeric)
 
-    #Numeric (Apply descriptives for numeric data)
-    kurtosis <- function(x) {
-      m4 <- mean((x-mean(x, na.rm=T))^4, na.rm=T)
-      kurt <- m4/(sd(x, na.rm=T)^4)-3
-      kurt
-    }
-    skewness <-  function(x) {
-      m3 <- mean((x-mean(x, na.rm=T))^3, na.rm=T)
-      skew <- m3/(sd(x, na.rm=T)^3)
-      skew
-    }
-    moda_cont <- function(x) {
-      if(length(na.omit(x))>1){
-        modas2 <- sum(diff(diff(density(x, adjust=2, na.rm=T)$y)>=0)<0)
-        modas1 <- sum(diff(diff(density(x, adjust=1, na.rm=T)$y)>=0)<0)
-        if(modas1!=modas2 & modas2==1)
-          return(modas2+0.5)
-        else
-          return(modas2)
-      }
-      else return(0)
-    }
+    #Numeric summary
     resumen<-function(y){
-      resumen1<-round(c(min(y, na.rm=T), quantile(y, probs=0.25, na.rm=T), median(y, na.rm=T), quantile(y, probs=0.75, na.rm=T), max(y, na.rm=T), mean(y, na.rm=T), sd(y, na.rm=T), kurtosis(y), skewness(y), moda_cont(y), sum(is.na(y))),z)
-      t(resumen1)
+      resumen1 <- round(c(min(y, na.rm=T), quantile(y, probs=0.25, na.rm=T), median(y, na.rm=T), quantile(y, probs=0.75, na.rm=T), max(y, na.rm=T), mean(y, na.rm=T), sd(y, na.rm=T), kurtosis(y), skewness(y)),z)
+      names(resumen1) <- c("Min", "1st Q.", "Median", "3rd Q.", "Max", "Mean", "SD", "Kurtosis", "Skewness")
+      distribution <- c("|", rep("-", 28), "|")
+      scaled_Y <- scale_01(y)
+      distribution[(nearest((resumen1["1st Q."]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))+1):(nearest((resumen1["3rd Q."]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))-1)]<-"#"
+      distribution[nearest((resumen1["1st Q."]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))]<-"["
+      distribution[nearest((resumen1["3rd Q."]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))]<-"]"
+      distribution[nearest((resumen1["Median"]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))]<-":"
+      return(data.frame(t(resumen1), Modes=moda_cont(y), NAs=sum(is.na(y)), Distribution=paste(distribution, collapse=""), check.names = FALSE, stringsAsFactors = FALSE))
     }
 
-    #Categorical (Apply descriptives for categorical data)
-    moda<-function(x){names(sort(-table(x)))[1]}
-    antimoda<-function(x){names(sort(table(x)))[1]}
-    prop_may<-function(x) {sort(-table(x))[1]/-(length(x)-ignore.na*sum(is.na(x)))}
-    prop_min<-function(x){sort(table(x))[1]/(length(x)-ignore.na*sum(is.na(x)))}
-    niveles<-function(x) {length(levels(x))}
     resumen2<-function(w){
-      resumen2<-c(length(table(w)), ifelse(nchar(paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/"))<18, paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/"), ifelse(nchar(gsub("[aeiouAEIOU]", "", paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/")))>25, paste(strtrim(gsub("[aeiouAEIOU]", "", paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/")), 23), "...", sep=""), gsub("[aeiouAEIOU]", "", paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/")))), moda(w), round(prop_may(w),z), antimoda(w), round(prop_min(w),z), sum(is.na(w)))
-      t(resumen2)
+      resumen2<-c(length(table(w)), abbreviate(paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/"), minlength = min(20, nchar(paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/"))), named=FALSE), moda(w), round(prop_may(w, ignore.na = ignore.na),z), antimoda(w), round(prop_min(w, ignore.na = ignore.na),z), sum(is.na(w)))
+      names(resumen2)<- c("N. Classes", "Classes", "Mode", "Prop. mode", "Anti-mode", "Prop. Anti-mode", "NAs")
+      data.frame(t(resumen2), check.names = FALSE, stringsAsFactors = FALSE)
     }
-
     #Results
     cat(paste("Data frame with", dim(x)[1], "observations and", dim(x)[2], "variables."))
     cat("\n")
     cat("\n")
-    if("TRUE" %in% names(table(nums))){
+    if("TRUE" %in% nums){
       cat("Numeric variables (", sum(nums), ")", sep="")
       cat("\n")
-      assign("summary1", apply(x[nums==T], 2, resumen), inherits=TRUE)
-      rownames(summary1)<-c("Min.", "1st Q.", "Median", "3rd Q.", "Max.", "Mean", "SD", "Kurtosis", "Asymmetry", "N. Modes", "NAs")
-      if (sum(summary1[10,]==1.5)==0)
-        print(summary1)
-      else{
-        summary1[c(-10,-11),] <- format(round(summary1[c(-10,-11),],z),nsmall=z)
-        summary1[10,][summary1[10,]==1.5] <- "1*"
-        print(summary1,quote=F,right=T)
-      }
+      summary1 <- do.call(rbind, lapply(x[,nums], resumen))
+      print(summary1)
     }
-    if("FALSE" %in% names(table(nums))){
-      assign("summary2", apply(x[nums==F], 2, resumen2), inherits = TRUE)
-      rownames(summary2)<-c("N. Classes", "Classes", "Mode", "Prop. mode", "Anti-mode", "Prop. Anti-mode", "NAs")
+    if("FALSE" %in% nums){
+      summary2 <- do.call(rbind, lapply(x[,!nums, drop=FALSE], resumen2))
       cat("\n")
       cat("Categorical variables (", dim(x)[2]-sum(nums), ")", sep="")
       cat("\n")
       print(summary2, quote=FALSE)
     }
-    if(length(x)>2 & graph==T){
-      sd2 <- function(x) var(if(is.numeric(x)) x else as.numeric(as.factor(x)), na.rm=T)
-      sd_0 <- sapply(x,sd2)==0
-      X.quanti<-NULL
-      X.quali<-NULL
-
-      if(length(x[nums==T & !sd_0])>0){
-        X.quanti<-x[nums==T & !sd_0]}
-      if(length(x[nums==F & !sd_0])>0){
-        X.quali<-x[nums==F & !sd_0]}
-
-      plot(ClustOfVar::hclustvar(X.quanti, X.quali), which=1, main="Clustering of variables")
-
-      if(sum(sd_0)>0)
-        warning(gettextf("Variables %s have been omited since they are constant",
-                         paste(names(x)[sd_0], collapse=", ")))
-    }
   }
-  return(invisible(list(Numerical=summary1, Categorical=summary2)))
+}
+
+#' Clustering of variables
+#'
+#' @description Displays associations between variables in a data.frame in a heatmap with clustering
+#' @param x A data.frame
+#' @param margins Margins for the plot
+#' @return A heatmap with the variable associations
+#' @importFrom stats lm heatmap xtabs
+#' @importFrom grDevices colorRampPalette
+#' @export
+#' @examples
+#' cluster_var(iris)
+#' cluster_var(mtcars)
+cluster_var <- function(x, margins=c(8,1)){
+  data <- x
+  if(any(sapply(data, is.numeric))){
+    associations <- sapply(data[, sapply(data, is.numeric)], function(x) sapply(data, function(y) suppressWarnings(summary(lm(x ~ y))$r.squared)))
+    heatmap(associations, col=colorRampPalette(c("gray", "darkred"))(25), scale="none", margins=margins, breaks=seq(0, 1, length.out = 26))
+  }
+  if (sum(!sapply(data, is.numeric))>1){
+    associations2 <- sapply(data[, !sapply(data, is.numeric)], function(x) sapply(data[, !sapply(data, is.numeric)], function(y) GK_assoc(x, y)))
+    rownames(associations2)<-colnames(associations2)
+    heatmap(associations2, col=colorRampPalette(c("gray", "darkred"))(25), scale="none", margins=margins, breaks=seq(0, 1, length.out = 26))
+  }
 }
 
 #' Mine plot
@@ -171,6 +260,7 @@ descriptivo<-function(x, z=3, graph=ifelse(length(data.frame(x))>20, FALSE, TRUE
 #' @param sort If TRUE, variables are sorted according to their results
 #' @param list If TRUE, creates a vector with the results
 #' @param ... further arguments passed to order()
+#' @importFrom graphics par image mtext
 #' @export
 #' @examples
 #' mine.plot(airquality)   #Displays missing data
@@ -213,6 +303,7 @@ is.it <- function(x) is.na(x)
 #' @param formula Formula for the boxplot
 #' @param boxwex Width of the boxes
 #' @param ... further arguments passed to beeswarm()
+#' @importFrom grDevices rgb
 #' @export
 #' @examples
 #' ipboxplot(Sepal.Length ~ Species, data=iris)
@@ -248,6 +339,8 @@ matrixPaste<-function (..., sep = rep(" ", length(list(...)) - 1)){
 #' @param by Grouping variable for the report
 #' @param file Name of the file to export the table
 #' @param type Format of the file
+#' @param digits Number of decimal places
+#' @param digitscat Number of decimal places for categorical variables (if different to digits)
 #' @param font Font to use if type="word"
 #' @param pointsize Pointsize to use if type="word"
 #' @param add.rownames Logical for adding rownames to the table
@@ -257,7 +350,7 @@ matrixPaste<-function (..., sep = rep(" ", length(list(...)) - 1)){
 #' report(iris)
 #' (reporTable<-report(iris, by="Species"))
 #' class(reporTable)
-report.data.frame<-function(x, by=NULL, file=NULL, type="word",
+report.data.frame<-function(x, by=NULL, file=NULL, type="word", digits=2, digitscat=digits,
                             font=ifelse(Sys.info()["sysname"] == "Windows", "Arial",
                                         "Helvetica")[[1]], pointsize=11,
                             add.rownames=FALSE, ...){
@@ -267,7 +360,7 @@ report.data.frame<-function(x, by=NULL, file=NULL, type="word",
   x[sapply(x, is.factor) & sapply(x, function(x) !all(levels(x) %in% unique(na.omit(x))))]<-lapply(x[sapply(x, is.factor) & sapply(x, function(x) !all(levels(x) %in% unique(na.omit(x))))], factor)
   if(length(by)>1){
     x.int <- data.frame(x, by=interaction(x[, match(unlist(by), names(x))]))
-    report(x.int[,-match(unlist(by), names(x.int))], by="by", file=file, type=type, font=font,
+    report(x.int[,-match(unlist(by), names(x.int))], by="by", file=file, type=type, digits=digits, digitscat=digitscat, font=font,
            pointsize=pointsize, add.rownames=add.rownames, ...)
   }
   else{
@@ -283,29 +376,29 @@ report.data.frame<-function(x, by=NULL, file=NULL, type="word",
   if(any(nums==TRUE)){
     estruct<-matrix(nrow=2, ncol=length(unique(na.omit(by_v)))+1)
     estruct[1:2,1]<-c("", "")
-    estruct[1, -1]<-"Mean (SD)"
+    estruct[1, -1]<-paste("Mean (SD)", ifelse(any(nums==FALSE), " / n(%)", ""), sep="")
     estruct[2,-1]<-"Median (1st, 3rd Q.)"
     cont<-character(2*length(x[nums==T]))
     cont[seq(1,length(cont), 2)]<-colnames(x[,nums==T, drop=FALSE])
     if(ncol(x[,nums==T, drop=FALSE])>1){
-      A<-matrixPaste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(mean(x, na.rm=TRUE),2)))), function(x) t(x)), " (",
-                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(sd(x, na.rm=TRUE),2)))), function(x) t(x)),")", sep=rep("", 3))
+      A<-matrixPaste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(mean(x, na.rm=TRUE),digits)))), function(x) t(x)), " (",
+                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(sd(x, na.rm=TRUE),digits)))), function(x) t(x)),")", sep=rep("", 3))
 
-      B<-matrixPaste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(median(x, na.rm=TRUE),2)))), function(x) t(x)),
+      B<-matrixPaste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(median(x, na.rm=TRUE),digits)))), function(x) t(x)),
                      " (",
-                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.25, na.rm=TRUE),2)))), function(x) t(x)),
+                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.25, na.rm=TRUE),digits)))), function(x) t(x)),
                      ", ",
-                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.75, na.rm=TRUE),2)))), function(x) t(x)),
+                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.75, na.rm=TRUE),digits)))), function(x) t(x)),
                      ")", sep=rep("", 5))
     }
     else {
-      A<-paste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(mean(x, na.rm=TRUE),2)))), function(x) t(x)), " (",
-               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(sd(x, na.rm=TRUE),2)))), function(x) t(x)),")", sep=rep(""))
-      B<-paste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(median(x, na.rm=TRUE),2)))), function(x) t(x)),
+      A<-paste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(mean(x, na.rm=TRUE),digits)))), function(x) t(x)), " (",
+               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(sd(x, na.rm=TRUE),digits)))), function(x) t(x)),")", sep=rep(""))
+      B<-paste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(median(x, na.rm=TRUE),digits)))), function(x) t(x)),
                " (",
-               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.25, na.rm=TRUE),2)))), function(x) t(x)),
+               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.25, na.rm=TRUE),digits)))), function(x) t(x)),
                ", ",
-               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.75, na.rm=TRUE),2)))), function(x) t(x)),
+               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.75, na.rm=TRUE),digits)))), function(x) t(x)),
                ")", sep=rep(""))
     }
 
@@ -329,7 +422,7 @@ report.data.frame<-function(x, by=NULL, file=NULL, type="word",
   if(any(nums==FALSE)){
     x[nums==F] <- lapply(x[nums==F],as.factor)
     C<-matrixPaste(sapply(by(x[nums==F], by_v, function(x) sapply(x, function(x) as.character(table(x)))), function(x) unlist(x)), " (",
-                   sapply(by(x[nums==F], by_v, function(x) sapply(x, function(x) as.character(round(100*(table(x)/sum(table(x))),1)))), function(x) unlist(x)),"%)", sep=rep("", 3))
+                   sapply(by(x[nums==F], by_v, function(x) sapply(x, function(x) as.character(round(100*(table(x)/sum(table(x))),digitscat)))), function(x) unlist(x)),"%)", sep=rep("", 3))
     cats[-(rev(rev(cumsum(c(1,pos)))[-1])+rev(rev((0:(dim(x[nums==F])[2])))[-1])),-1]<-C
   }
 
@@ -430,6 +523,7 @@ fix.dates <- function (x, cent = "19"){
 #' @param levels Optional vector with the levels names
 #' @param plot Optional: Plot cluster dendrogram?
 #' @param k Number of levels for clustering
+#' @importFrom stats hclust rect.hclust cutree
 #' @export
 #' @examples
 #' factor1<-factor(c("Control", "Treatment", "Tretament", "Tratment", "treatment",
