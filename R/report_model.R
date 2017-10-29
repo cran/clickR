@@ -469,10 +469,11 @@ report.brmsfit<-function(x, file=NULL, type="word", digits=3,
                          pointsize=11, ...){
   compute.exp<-x$family$link %in% c("logit", "log")
   sx<-summary(x)
-  random<-do.call(rbind, sx$random)
-  if(!is.null(random)) rownames(random)<-paste("Sd", names(sx$random), sep=" ")
+  WC<-brms::WAIC(x)
+  random<-tryCatch(do.call(rbind, sx$random), error=function(e) NA)
+  if(!any(is.na(random))) rownames(random)<-paste(rownames(random),rep(names(sx$random), sapply(sx$random, nrow)), sep=" ")
   obj<-list(coefficients=setNames(sx$fixed[,1], rownames(sx$fixed)), se=sx$fixed[,2], lwr.int=sx$fixed[,3],
-            upper.int=sx$fixed[,4], random=random)
+            upper.int=sx$fixed[,4], random=random, WAIC=setNames(c(WC$waic, WC$se_waic), c("WAIC", "WAIC SE")), Eff.Sample_min=round(min(sx$fixed[,5])), Rhat_max=round(max(sx$fixed[,6]),2))
   if(compute.exp){
     obj$exp.coef <- exp(obj$coefficients)
     obj$exp.lwr.int <- exp(obj$lwr.int)
@@ -484,12 +485,15 @@ report.brmsfit<-function(x, file=NULL, type="word", digits=3,
                               round(obj$exp.upper.int, digits))
                       } else{
                         cbind(round(obj$lwr.int,digits), round(obj$upper.int, digits))
-                      }), if(!is.null(random)) {cbind(round(random[,1:2, drop=FALSE], digits), if(compute.exp) "-", round(random[,3:4, drop=FALSE], digits))})
+                      }), if(!any(is.na(random))) {cbind(round(random[,1:2, drop=FALSE], digits), if(compute.exp) "-", round(random[,3:4, drop=FALSE], digits))},
+                c(round(WC$waic, digits), round(WC$se_waic, digits), rep("", ifelse(compute.exp, 3, 2))))
+  rownames(output)[dim(output)[1]]<-"WAIC"
   colnames(output)<-c('Estimate','Std. Error',if(compute.exp) 'exp(Estimate)', 'Lower 95%','Upper 95%')
   if(!is.null(file)){
     make_table(output, file, type, font, pointsize)
   }
   print(data.frame(output, check.names=FALSE, stringsAsFactors=FALSE), row.names=TRUE, right=TRUE)
+  if(obj$Rhat_max > 1.1) warning("Please diagnose your model, Rhat values greater than 1.1")
   class(obj) <- "reportmodel"
   invisible(obj)
 }
@@ -757,7 +761,6 @@ report<-function(x, ...){
 VarCorr<-function (x, sigma = 1, ...){
   UseMethod("VarCorr")
 }
-
 
 #' Default function for report
 #'
