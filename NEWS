@@ -1,3 +1,29 @@
+clickR 0.3.64 (Release date: 2018-21-04)
+
+Changes:
+
+* Added option to report.model (info=TRUE) so that the model call can be included in the exported table
+* Fixed small bugs regarding compatibility with brms models
+
+
+clickR 0.3.41 (Release date: 2018-04-01)
+
+Changes:
+
+* Removed dependency from brms
+
+
+clickR 0.3.40 (Release date: 2017-11-25)
+==============
+
+Changes:
+
+* Fixed bug in report.rq() function
+* mine.plot() now gives information about variable classes
+
+
+
+
 clickR 0.3.36 (Release date: 2017-10-28)
 ==============
 
