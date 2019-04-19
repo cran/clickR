@@ -352,13 +352,14 @@ matrixPaste<-function (..., sep = rep(" ", length(list(...)) - 1)){
 #' @param type Format of the file
 #' @param digits Number of decimal places
 #' @param digitscat Number of decimal places for categorical variables (if different to digits)
+#' @param print Should the report table be printed on screen?
 #' @param ... further arguments passed to make_table()
 #' @export
 #' @examples
 #' report(iris)
 #' (reporTable<-report(iris, by="Species"))
 #' class(reporTable)
-report.data.frame<-function(x, by=NULL, file=NULL, type="word", digits=2, digitscat=digits, ...){
+report.data.frame<-function(x, by=NULL, file=NULL, type="word", digits=2, digitscat=digits, print=TRUE, ...){
   if(is.data.frame(x)==F){
     x<-data.frame(x)}
   x<-x[,!sapply(x, function(x) sum(is.na(x))/length(x))==1 & sapply(x, function(x) is.numeric(x) | is.factor(x)), drop=FALSE]
@@ -433,9 +434,10 @@ report.data.frame<-function(x, by=NULL, file=NULL, type="word", digits=2, digits
   #Matrix binding
   output<-rbind(estruct, AB, cats)
   colnames(output)<-c("Variable", paste(by, levels(by_v), sep=" ", "n =", as.vector(table(by_v))))
-
   if(!is.null(file)) make_table(output, file, type, use.rownames=FALSE)
-  return(print(data.frame(output, check.names=FALSE, stringsAsFactors=FALSE), row.names=FALSE, right=FALSE))
+  output <- data.frame(output, check.names=FALSE, stringsAsFactors=FALSE)
+  if(print) print(output, row.names=FALSE, right=FALSE)
+  invisible(output)
   }
 }
 
@@ -685,12 +687,12 @@ good2go <- function(path=getwd(), info=TRUE, load=TRUE){
   files <- list.files(path=path, pattern="\\.R$")
   libraries <- unique(do.call("c", lapply(files, function(x) {
     x <- readLines(x)
-    x[grepl("library\\(", x)]
+    x[grepl("library\\(|require\\(", x)]
   }
   )))
-  p_list <- gsub("\\)", "", gsub("library\\(", "", libraries))
+  p_list <- gsub("\\)", "", gsub("library\\(|require\\(", "", libraries))
   if(load) lapply(p_list, function(x) require(x, character.only = TRUE, quietly=TRUE))
-  if(info) print(paste("Packages:", paste(gsub("\\)", "", gsub("library\\(", "", libraries)), collapse=", ")), quote=FALSE)
+  if(info) print(paste("Packages:", paste(p_list, collapse=", ")), quote=FALSE)
 }
 
 
@@ -722,27 +724,79 @@ good2go <- function(path=getwd(), info=TRUE, load=TRUE){
 #' df3
 #' forge(df3, affixes=c("1", "2", "3"))
 #' forge(df3, affixes=c("1", "2", "3"), force.fixed = c("var1"))
-forge <- function(data, affixes, force.fixed=NULL, var.name="time"){
-  data_ord <- data[,order(names(data))]
+forge <- function(data, affixes, force.fixed = NULL, var.name = "time"){
+  data_ord <- data[, order(names(data))]
   indices <- data.frame(sapply(affixes, function(x) grepl(x, names(data_ord))))
   if(!is.null(force.fixed)){
     positions <- which(names(data_ord) %in% force.fixed)
-    indices[positions,] <- FALSE
+    indices[positions, ] <- FALSE
   }
   cat("Repetitions for each variable: \n \n")
-  print(sort(table(unlist(lapply(indices, function(x) gsub(paste(affixes, collapse="|"), "", names(data_ord)[x])))), decreasing=TRUE))
+  print(sort(table(unlist(lapply(indices, function(x) gsub(paste(affixes,
+    collapse = "|"), "", names(data_ord)[x])))), decreasing = TRUE))
   listas <- lapply(indices, function(x) {
-    setNames(data_ord[,x, drop=FALSE], gsub(paste(affixes, collapse="|"), "", names(data_ord)[x]))
+    setNames(data_ord[, x, drop = FALSE], gsub(paste(affixes,
+      collapse = "|"), "", names(data_ord)[x]))
   })
   variables <- unique(unlist(lapply(listas, names)))
-  listas <- lapply(listas, function(x){
-    df <- data.frame(x, matrix(NA, nrow=nrow(data), ncol=length(variables[!variables %in% names(x)])))
+  listas <- lapply(listas, function(x) {
+    df <- data.frame(x, matrix(NA, nrow = nrow(data), ncol = length(variables[!variables %in%
+                                                                                names(x)])))
     names(df) <- c(names(x), variables[!variables %in% names(x)])
     df
   })
   long <- do.call("rbind", listas)
-  fixed <- data_ord[,!apply(indices, 1, any)]
-  out <- data.frame(fixed[,na.omit(match(names(data), names(fixed)))][rep(1:nrow(data), length(affixes)),], long, affix=rep(affixes, each=nrow(data)))
+  fixed <- data_ord[, !apply(indices, 1, any), drop=FALSE]
+  out <- data.frame(fixed[, na.omit(match(names(data), names(fixed))), drop=FALSE][rep(1:nrow(data),
+    length(affixes)), ,drop=FALSE], long, affix = rep(affixes, each = nrow(data)))
   names(out)[ncol(out)] <- var.name
   out
 }
+
+#' Un-Forge
+#'
+#' @description Reshapes a data frame from long to wide format
+#' @param data data.frame
+#' @param origin Character vector with variable names in data containing the values to be assigned to the different new variables
+#' @param variables Variable in data containing the variable names to be created
+#' @param prefix Vector with prefixes for the new variable names
+#' @export
+#' @examples
+#' #Data frame in wide format
+#' df1 <- data.frame(id = 1:4, age = c(20, 30, 30, 35), score1 = c(2,2,3,4),
+#'                   score2 = c(2,1,3,1), score3 = c(1,1,0,1))
+#' df1
+#' #Data frame in long format
+#' df2 <- forge(df1, affixes= c("1", "2", "3"))
+#' df2
+#' #Data frame in wide format again
+#' df3 <- unforge(df2, "score", "time", prefix="score")
+#'
+unforge <- function(data, origin, variables, prefix=origin){
+  splitted <- split(data, data[variables])
+  out_data <- cbind(splitted[[1]][,!names(data) %in% c(origin, variables)],
+                    setNames(do.call(cbind, lapply(split(data, data[variables]), function(x) x[origin])),
+                             paste(rep(prefix, length(unique(data[,variables]))),
+                                   rep(names(splitted), each=length(origin)), sep="")))
+  out_data
+}
+
+
+#' Search scripts
+#'
+#' @description Searches for strings in R script files
+#' @param string Character string to search
+#' @param path Character vector with the path name
+#' @param recursive Logical. Should the search be recursive into subdirectories?
+#' @return A list with each element being one of the files containing the search string
+#' @export
+search_scripts <- function(string, path=getwd(), recursive=TRUE){
+  files <- list.files(path=path, pattern="\\.R$", recursive = recursive, full.names=TRUE)
+  listado <- lapply(files, function(x) {
+    x <- readLines(x, warn=FALSE)
+    x[grepl(string, x)]
+  })
+  names(listado) <- files
+  listado[sapply(listado, length) != 0]
+}
+
