@@ -560,7 +560,12 @@ fxd <- function(d, locale="C", use.probs=TRUE){
   if(use.probs){
     co<-co[order(unlist(lapply(co, function(x) sum(is.na(x)))))]
   }
-  return(do.call("c", lapply(1:length(d), function(y) na.omit(do.call("c", lapply(co, function(x) x[y])))[1])))
+  final_dates <- do.call("c", lapply(1:length(d), function(y) na.omit(do.call("c", lapply(co, function(x) x[y])))[1]))
+  years <- as.numeric(substr(final_dates, 1, 4))
+  median_year <- median(years, na.rm=TRUE)
+  final_dates[abs(years - median_year) %>NA% abs(years-100 - median_year)] <- do.call(c, lapply(final_dates[abs(years - median_year) %>NA% abs(years-100 - median_year)], function(x) tryCatch(seq(x, length=2, by="-100 years")[2], error=function(e) NA)))
+  final_dates[abs(years - median_year) %>NA% abs(years+100 - median_year)] <- do.call(c, lapply(final_dates[abs(years - median_year) %>NA% abs(years+100 - median_year)], function(x) tryCatch(seq(x, length=2, by="100 years")[2], error=function(e) NA)))
+  return(final_dates)
   Sys.setlocale("LC_TIME", "")
 }
 
@@ -690,7 +695,7 @@ good2go <- function(path=getwd(), info=TRUE, load=TRUE){
     x[grepl("library\\(|require\\(", x)]
   }
   )))
-  p_list <- gsub("\\)", "", gsub("library\\(|require\\(", "", libraries))
+  p_list <- gsub('\\"', "", gsub("\\)", "", gsub("library\\(|require\\(", "", libraries)))
   if(load) lapply(p_list, function(x) require(x, character.only = TRUE, quietly=TRUE))
   if(info) print(paste("Packages:", paste(p_list, collapse=", ")), quote=FALSE)
 }

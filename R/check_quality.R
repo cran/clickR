@@ -39,7 +39,8 @@ numeros <- function(x) {
 #' @return A logical vector
 #' @export
 ttrue <- function(x){
-  x[is.null(x) | is.na(x)] <- FALSE
+  x[is.na(x)] <- FALSE
+  if(length(x) == 0L) x <- FALSE
   x
 }
 
@@ -159,4 +160,36 @@ check_quality <- function(x, id=1:length(x), plot=TRUE, numeric=NULL, n=ifelse(i
     res<-list(Summary=data.frame(n=length(x), NAs=NAs, whitespace=whitespace, numbers=numbers, strings=Strings), Extremes=if(num | date) Extremes else cbind(Table, N.Categories=c(rep("", n-1), length(table(x)))), Offending=offending_values)
   }
   return(res)
+}
+
+#' Explores global environment workspace
+#'
+#' @description Returns information regarding the different objects in global environment
+#' @param table If TRUE a table with the frequencies of each type of object is given
+#' @return A list of object names by class or a table with frequencies if table = TRUE
+#' @export
+#' @examples
+#' df1 <- data.frame(x=rnorm(10), y=rnorm(10, 1, 2))
+#' df2 <- data.frame(x=rnorm(20), y=rnorm(20, 1, 2))
+#' workspace(table=TRUE)  #Frequency table of the different object classes
+#' workspace()  #All objects in the global object separated by class
+workspace <- function(table=FALSE) {
+  list_obj <- split(objects(envir=.GlobalEnv), sapply(objects(envir=.GlobalEnv), function(x) class(get(x, envir=.GlobalEnv))[length(class(get(x, envir=.GlobalEnv)))]))
+  if(table) sapply(list_obj, function(x) length(x)) else list_obj
+}
+
+
+#' Applies a function over objects of a specific class
+#'
+#' @description Applies a function over all objects of a specific class in the global environment
+#' @param object_class Class of the objects where the function is to be applied
+#' @param action Name of the function to apply
+#' @return Results of the function
+#' @export
+#' @examples
+#' df1 <- data.frame(x=rnorm(10), y=rnorm(10, 1, 2))
+#' df2 <- data.frame(x=rnorm(20), y=rnorm(20, 1, 2))
+#' workspace_sapply("data.frame", "summary")  #Gives a summary of each data.frame
+workspace_sapply <- function(object_class, action="summary"){
+  sapply(workspace()[[object_class]], function(x) get(action)(get(x)), simplify=FALSE)
 }
