@@ -1,7 +1,7 @@
 Package: clickR
 Type: Package
 Title: Fix Data and Create Report Tables from Different Objects
-Version: 0.4.47
+Version: 0.5.27
 Author: Victoria Fornes Ferrer, David Hervas Marin
 Maintainer: David Hervas Marin <ddhervas@yahoo.es>
 Imports: beeswarm, boot, flextable, lme4, lmerTest, methods, officer,
@@ -12,8 +12,8 @@ Description: Tools for assessing data quality, performing exploratory analysis,
 License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.1
 NeedsCompilation: no
-Packaged: 2020-02-29 18:59:27 UTC; aghil
+Packaged: 2020-12-07 15:47:09 UTC; aghil
 Repository: CRAN
-Date/Publication: 2020-02-29 19:10:02 UTC
+Date/Publication: 2020-12-07 16:00:02 UTC
