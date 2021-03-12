@@ -118,64 +118,38 @@ GK_assoc <- function(x, y){
 #' @examples
 #' descriptive(iris)
 #' descriptive(iris, by="Species")
-descriptive<-function(x, z=3, ignore.na=TRUE, by=NULL){
+descriptive <- function(x, z=3, ignore.na=TRUE, by=NULL){
   #Data.frame
-  if(is.data.frame(x)==FALSE){
-    x<-data.frame(x)}
-  x<-x[,!sapply(x, function(x) all(is.na(x)))]
+  if(!is.data.frame(x)){
+    x<-data.frame(x)
+  }
+  x<-x[, !sapply(x, function(x) all(is.na(x)))]
 
-  if(!is.null(by))
-  {
-    if (by %in% names(x))
-    {
-      pos_by <- match(by,names(x))
-      by_v <- eval(parse(text=paste("x$",by,sep="")))
-      x_sin <- data.frame(x[,-pos_by])
-      names(x_sin) <- names(x)[-pos_by]
-      if (length(x_sin)==0)
-      {
-        descriptive(x,z,ignore.na,by=NULL)
-        stop("Only one variable in the data. Can't be used as grouping variable")
-      }
+  if(!is.null(by) && by %in% names(x)){
+    by_v <- x[,by]
+    x_sin <- x[,!colnames(x) == by, drop=FALSE]
+    if (length(x_sin)==0){
+      descriptive(x,z,ignore.na,by=NULL)
+      stop("Only one variable in the data. Can't be used as grouping variable")
     }
-    else{
-      pos_by<-NULL
-      by_v <- eval(parse(text=by))
-      x_sin <- x
-    }
-
-    if (length(by_v)!=dim(x_sin)[1] | is.numeric(by_v))
-    {
-      descriptive(x=x,z=z,ignore.na=ignore.na,by=NULL)
-      warning(gettextf("Variable %s does not have the same number of observations than the data or is not a factor.
-                       Summary without grouping.", by))
-    }
-    else
-    {
-      x_sin <- x_sin[!is.na(by_v),]
-      by_v <- by_v[!is.na(by_v)]
-      by_v <- factor(by_v)
-      x_sin <- data.frame(x_sin)
-      if(!is.null(pos_by)) names(x_sin) <- names(x)[-pos_by]
-      niveles <- levels(by_v)
-      cat("Summary by ", by, ":", sep="")
+    x_sin <- x_sin[!is.na(by_v),]
+    by_v <- by_v[!is.na(by_v)]
+    by_v <- factor(by_v)
+    niveles <- levels(by_v)
+    cat("Summary by ", by, ":", sep="")
+    cat("\n")
+    cat("-------------------------------")
+    cat("\n")
+    for (i in 1:length(niveles)){
+      x_g <- x_sin[by_v==niveles[i],]
+      cat("Level ", by, ": ", niveles[i], sep="")
+      cat("\n")
+      descriptive(x=x_g,z=z,ignore.na=ignore.na,by=NULL)
       cat("\n")
       cat("-------------------------------")
       cat("\n")
-      for (i in 1:length(niveles))
-      {
-        x_g <- x_sin[by_v==niveles[i],]
-        cat("Level ", by, ": ", niveles[i], sep="")
-        cat("\n")
-        descriptive(x=x_g,z=z,ignore.na=ignore.na,by=NULL)
-        cat("\n")
-        cat("-------------------------------")
-        cat("\n")
-      }
     }
-    }
-  else{
-
+  } else{
     #Splitter (Splits data.frame: Numeric and categorical part)
     nums <- sapply(x, is.numeric)
 
@@ -206,14 +180,15 @@ descriptive<-function(x, z=3, ignore.na=TRUE, by=NULL){
       cat("\n")
       summary1 <- do.call(rbind, lapply(x[,nums], resumen))
       print(summary1)
-    }
+    } else { summary1 <- NULL}
     if("FALSE" %in% nums){
       summary2 <- do.call(rbind, lapply(x[,!nums, drop=FALSE], resumen2))
       cat("\n")
       cat("Categorical variables (", dim(x)[2]-sum(nums), ")", sep="")
       cat("\n")
       print(summary2, quote=FALSE)
-    }
+    } else { summary2 <- NULL}
+    invisible(list(numeric=summary1, character=summary2))
   }
 }
 
@@ -246,10 +221,9 @@ cluster_var <- function(x, margins=c(8,1)){
 #'
 #' @description Creates a heatmap-like plot for exploring the data
 #' @param x A data.frame
-#' @param what A logical expresion that will be depicted in the plot
+#' @param fun A function that evaluates a vector and returns a logical vector
 #' @param spacing Numerical separation between lines at the y-axis
 #' @param sort If TRUE, variables are sorted according to their results
-#' @param list If TRUE, creates a vector with the results
 #' @param show.x Should the x-axis be plotted?
 #' @param show.y Should the y-axis be plotted?
 #' @param ... further arguments passed to order()
@@ -258,18 +232,17 @@ cluster_var <- function(x, margins=c(8,1)){
 #' @export
 #' @examples
 #' mine.plot(airquality)   #Displays missing data
-#' mine.plot(airquality, what="x>mean(x)+2*sd(x) | x<mean(x)-2*sd(x)")   #Shows extreme values
-mine.plot <- function(x, what="is.na(x)", spacing=5, sort=F, list=FALSE, show.x=TRUE, show.y=TRUE, ...){
-  eval(parse(text=paste("is.it<-function(x)", what)))
+#' mine.plot(airquality, fun=outliers)   #Shows extreme values
+mine.plot <- function(x, fun=is.na, spacing=5, sort=F, show.x=TRUE, show.y=TRUE, ...){
   x<-as.data.frame(x)
   if(sort){
-    orden <- order(sapply(x, function(x) sum(is.it(x))), ...)
+    orden <- order(sapply(x, function(x) sum(fun(x))), ...)
     x <- x[,orden]
   }
   old.warn <- options(warn=-1)
   pad<- ceiling(dim(x)[2]/30)
   old.par <- par(mar=c(8, 4.5, 6, 4))
-  image(t(sapply(x, function(x) is.it(x))), xaxt="n", yaxt="n", col=colorRampPalette(c("lightcyan4", "darkred"))(2), ...)
+  image(t(sapply(x, fun)), xaxt="n", yaxt="n", col=colorRampPalette(c("lightcyan4", "darkred"))(2), ...)
   if(show.x){
     axis(1, at=seq(0, 1, length=dim(x)[2]), labels=paste(names(x), "\n", "(", sapply(x, class), ")", sep=""), las=2, lwd=0, cex.axis=0.8)
   }
@@ -278,21 +251,43 @@ mine.plot <- function(x, what="is.na(x)", spacing=5, sort=F, list=FALSE, show.x=
   }
   for(i in 1:pad){
     axis(3, at=seq(0, 1, length=dim(x)[2])[seq(0+i, dim(x)[2], by=pad)],
-         labels=sapply(x, function(x) round(100*sum(is.it(x))/length(x)))[seq(0+i, dim(x)[2], by=pad)], cex.axis=0.6, lwd=0, line=-1+i/2)
+         labels=sapply(x, function(x) round(100*sum(fun(x))/length(x)))[seq(0+i, dim(x)[2], by=pad)], cex.axis=0.6, lwd=0, line=-1+i/2)
   }
-  if(!hasArg("main")) mtext(paste("%", what), 3, line=max(pad/1.5, 2.5), cex=1.2)
+  if(!hasArg("main")) mtext(paste("%", as.character(substitute(fun))), 3, line=max(pad/1.5, 2.5), cex=1.2)
   options(old.warn)
-  if(list){
-    return(sapply(x, function(x) round(100*sum(is.it(x))/length(x))))
-  }
+  output1 <- do.call(rbind, lapply(1:ncol(x), function(y){
+    variable <- names(x)[y]
+    out <- fun(x[,y])
+    id <- which(out)
+    value <- x[,y][out]
+    if(ttrue(any(out))) data.frame(variable=variable, id=id, value=as.character(value))
+  }))
+  output2 <- sapply(x, function(x) round(sum(fun(x))/length(x), 2))
+  return(list(list=output1, summary=output2))
   par(old.par)
 }
 
-#' is.it
+#' outliers
 #'
-#' @description Internal function for mine.plot
-#' @param x logical expression
-is.it <- function(x) is.na(x)
+#' @description Function for detecting outliers based on the boxplot method
+#' @param x A vector
+#' @export
+#' @examples
+#' outliers(iris$Petal.Length)
+#' outliers(airquality$Ozone)
+outliers <- function(x){
+  if(any(c("Date", "POSIXt") %in% class(x))){
+    quantiles <- quantile(as.POSIXct(x), probs=c(0.25, 0.75), na.rm=TRUE)
+    unclass(as.POSIXct(x)) %<NA% (unclass(quantiles["25%"]) - 1.5*(unclass(quantiles["75%"])-unclass(quantiles["25%"]))) |
+      unclass(as.POSIXct(x)) %>NA% (unclass(quantiles["75%"]) + 1.5*(unclass(quantiles["75%"])-unclass(quantiles["25%"])))
+  } else{
+    if(is.numeric(x)){
+      quantiles <- quantile(x, probs=c(0.25, 0.75), na.rm=TRUE)
+      x %<NA% (quantiles["25%"] - 1.5*(quantiles["75%"]-quantiles["25%"])) |
+        x %>NA% (quantiles["75%"] + 1.5*(quantiles["75%"]-quantiles["25%"]))
+    } else rep(NA, length(x))
+  }
+}
 
 
 #' Improved boxplot
@@ -311,123 +306,6 @@ ipboxplot<-function(formula, boxwex=0.6, ...){
   beeswarm::beeswarm(formula, pch=16, col=rgb(50, 50, 50, 150, maxColorValue=255), add=T, ...)
 }
 
-#' Auxiliary matrix paste function
-#' @description Internal function for report.table
-#' @param ... Matrices to paste
-#' @param sep Separator for the paste function
-matrixPaste<-function (..., sep = rep(" ", length(list(...)) - 1)){
-  theDots <- list(...)
-  if (any(unlist(lapply(theDots, function(x) !is.character(x)))))
-    stop("all matrices must be character")
-  numRows <- unlist(lapply(theDots, nrow))
-  numCols <- unlist(lapply(theDots, ncol))
-  if (length(unique(numRows)) > 1 | length(unique(numCols)) >
-      1)
-    stop("all matrices must have the same dim")
-  for (i in seq(along = theDots)) out <- if (i == 1)
-    theDots[[i]]
-  else paste(out, theDots[[i]], sep = sep[i - 1])
-  matrix(out, nrow = numRows[1])
-}
-
-#' Report tables of summary data
-#'
-#' @description Creates a report table ready for publication
-#' @param x A data.frame object
-#' @param by Grouping variable for the report
-#' @param file Name of the file to export the table
-#' @param type Format of the file
-#' @param digits Number of decimal places
-#' @param digitscat Number of decimal places for categorical variables (if different to digits)
-#' @param print Should the report table be printed on screen?
-#' @param ... further arguments passed to make_table()
-#' @export
-#' @examples
-#' report(iris)
-#' (reporTable<-report(iris, by="Species"))
-#' class(reporTable)
-report.data.frame<-function(x, by=NULL, file=NULL, type="word", digits=2, digitscat=digits, print=TRUE, ...){
-  if(is.data.frame(x)==F){
-    x<-data.frame(x)}
-  x<-x[,!sapply(x, function(x) sum(is.na(x))/length(x))==1 & sapply(x, function(x) is.numeric(x) | is.factor(x)), drop=FALSE]
-  x[sapply(x, is.factor) & sapply(x, function(x) !all(levels(x) %in% unique(na.omit(x))))]<-lapply(x[sapply(x, is.factor) & sapply(x, function(x) !all(levels(x) %in% unique(na.omit(x))))], factor)
-  if(length(by)>1){
-    x.int <- data.frame(x, by=interaction(x[, match(unlist(by), names(x))]))
-    report(x.int[,-match(unlist(by), names(x.int))], by="by", file=file, type=type, digits=digits, digitscat=digitscat, ...)
-  }
-  else{
-  by_v <- factor(rep("", nrow(x)))
-  if(!is.null(by)){
-    pos_by<-match(by, names(x))
-    by_v<-factor(eval(parse(text=paste("x$", by, sep=""))))
-    x<-x[,-pos_by, drop=FALSE]
-  }
-
-  #Numeric part
-  nums <- sapply(x, is.numeric)
-  if(any(nums==TRUE)){
-    estruct<-matrix(nrow=2, ncol=length(unique(na.omit(by_v)))+1)
-    estruct[1:2,1]<-c("", "")
-    estruct[1, -1]<-paste("Mean (SD)", ifelse(any(nums==FALSE), " / n(%)", ""), sep="")
-    estruct[2,-1]<-"Median (1st, 3rd Q.)"
-    cont<-character(2*length(x[nums==T]))
-    cont[seq(1,length(cont), 2)]<-colnames(x[,nums==T, drop=FALSE])
-    if(ncol(x[,nums==T, drop=FALSE])>1){
-      A<-matrixPaste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(mean(x, na.rm=TRUE),digits)))), function(x) t(x)), " (",
-                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(sd(x, na.rm=TRUE),digits)))), function(x) t(x)),")", sep=rep("", 3))
-
-      B<-matrixPaste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(median(x, na.rm=TRUE),digits)))), function(x) t(x)),
-                     " (",
-                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.25, na.rm=TRUE),digits)))), function(x) t(x)),
-                     ", ",
-                     sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.75, na.rm=TRUE),digits)))), function(x) t(x)),
-                     ")", sep=rep("", 5))
-    }
-    else {
-      A<-paste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(mean(x, na.rm=TRUE),digits)))), function(x) t(x)), " (",
-               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(sd(x, na.rm=TRUE),digits)))), function(x) t(x)),")", sep=rep(""))
-      B<-paste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(median(x, na.rm=TRUE),digits)))), function(x) t(x)),
-               " (",
-               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.25, na.rm=TRUE),digits)))), function(x) t(x)),
-               ", ",
-               sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.75, na.rm=TRUE),digits)))), function(x) t(x)),
-               ")", sep=rep(""))
-    }
-
-    AB<-matrix(nrow=nrow(rbind(A, B)), ncol=ncol(rbind(A,B))+1)
-    AB[seq(1, dim(rbind(A, B))[1], 2),-1]<-A
-    AB[-c(seq(1, dim(rbind(A, B))[1], 2)),-1]<-B
-    AB[,1]<-cont
-  }
-  else{
-    AB<-NULL
-    estruct<-matrix(nrow=1, ncol=length(unique(na.omit(by_v)))+1)
-    estruct[1,1]<-""
-    estruct[1, -1]<-"n (%)"
-  }
-
-  #Categorical part
-  cats<-matrix(data="", ncol=length(levels(by_v))+1, nrow=suppressWarnings(length(na.omit(unlist(sapply(x[nums==F], function(x) na.omit(unique(x)))))))+length(x[nums==F]))
-  pos<-sapply(sapply(x[nums==F], function(x) na.omit(unique(x)), simplify=FALSE), function(x) length(x))
-  cats[rev(rev(cumsum(c(1,pos)))[-1])+rev(rev((0:(dim(x[nums==F])[2])))[-1]),1]<-colnames(x[nums==F])
-  cats[-(rev(rev(cumsum(c(1,pos)))[-1])+rev(rev((0:(dim(x[nums==F])[2])))[-1])),1]<-paste("  ", suppressWarnings(na.omit(unlist(sapply(x[nums==F], function(x) levels(as.factor(x)))))), sep="")
-  if(any(nums==FALSE)){
-    x[nums==F] <- lapply(x[nums==F],as.factor)
-    C<-matrixPaste(sapply(by(x[nums==F], by_v, function(x) sapply(x, function(x) as.character(table(x)))), function(x) unlist(x)), " (",
-                   sapply(by(x[nums==F], by_v, function(x) sapply(x, function(x) as.character(round(100*(table(x)/sum(table(x))),digitscat)))), function(x) unlist(x)),"%)", sep=rep("", 3))
-    cats[-(rev(rev(cumsum(c(1,pos)))[-1])+rev(rev((0:(dim(x[nums==F])[2])))[-1])),-1]<-C
-  }
-
-  #Matrix binding
-  output<-rbind(estruct, AB, cats)
-  colnames(output)<-c("Variable", paste(by, levels(by_v), sep=" ", "n =", as.vector(table(by_v))))
-  if(!is.null(file)) make_table(output, file, type, use.rownames=FALSE)
-  output <- data.frame(output, check.names=FALSE, stringsAsFactors=FALSE)
-  if(print) print(output, row.names=FALSE, right=FALSE)
-  invisible(output)
-  }
-}
-
 #' Multiple tapply
 #'
 #' @description Modification of the tapply function to use with data.frames. Consider using aggregate()
@@ -440,328 +318,6 @@ report.data.frame<-function(x, by=NULL, file=NULL, type="word", digits=2, digits
 mtapply <- function(x, group, fun){
   if(is.null(dim(x))) tapply(x, group, fun)
   else sapply(split(x, group), function(x) sapply(x, function(x) fun(x)))
-}
-
-#' Fix factors imported as numerics
-#'
-#' @description Fixes factors imported as numerics
-#' @param x A data.frame
-#' @param k Maximum number of numeric values to be converted to factor
-#' @param drop Drop similar levels?
-#' @param track Keep track of changes?
-#' @export
-#' @examples
-#' report(mtcars)
-#' report(fix.factors(mtcars))
-fix.factors<-function(x, k=5, drop=TRUE, track=TRUE){
-  changes_old <- attr(x, "changes")
-  if(track) old <- x
-  candidate_variables <- (sapply(x, function(x) (is.numeric(x) |
-                                                   is.character(x)) &
-                                   length(unique(x))<=k)) |
-    (sapply(x, function(x) is.factor(x)))
-  x[, candidate_variables] <- lapply(x[, candidate_variables, drop=FALSE],
-                                     function(x) {
-                                       if(drop) {factor(iconv(droplevels(as.factor(gsub("^ *|(?<= ) | *$", "", tolower(as.character(x)), perl=TRUE))), to="ASCII//TRANSLIT"))
-                                       } else factor(x)
-                                     })
-  if(track){
-    changes <- data.frame(variable=names(candidate_variables)[candidate_variables],
-                          observation="all",
-                          original=sapply(old[,candidate_variables], class),
-                          new="factor",
-                          fun="fix.factors", row.names=NULL)
-    if(!is.null(changes_old)){
-      attr(x, "changes") <- rbind(changes_old, changes)
-    } else {
-      attr(x, "changes") <- changes
-    }
-  }
-  return(x)
-}
-
-#' Fix numeric data
-#'
-#' @description Fixes numeric data
-#' @param x A data.frame
-#' @param k Minimum number of different values to be considered numerical
-#' @param max.NA Maximum allowed proportion of NA values created by coercion
-#' @param track Keep track of changes?
-#' @export
-#' @examples
-#' mydata<-data.frame(Numeric1=c(7.8, 9.2, 5.4, 3.3, "6,8", "3..3"),
-#'                    Numeric2=c(3.1, 1.2, "3.s4", "a48,s5", 7, "6,,4"), stringsAsFactors=TRUE)
-#' report(mydata)
-#' report(fix.numerics(mydata, k=5))
-fix.numerics <- function(x, k=8, max.NA=0.2, track=TRUE){
-  changes_old <- attr(x, "changes")
-  old <- x
-  previous.NA<- sapply(x, function(x) sum(is.na(x)))
-  candidate_variables <- apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !(is.numeric(x) | inherits(x, 'Date'))) & sapply(x, function(x) length(unique(x))>=k)
-  x[, candidate_variables] <- lapply(x[, candidate_variables, drop=FALSE], function(x) numeros(x))
-  final.NA<-sapply(x, function(x) sum(is.na(x)))-previous.NA
-  x[,(final.NA-previous.NA) > nrow(x)*max.NA] <- old[,(final.NA-previous.NA) > nrow(x)*max.NA]
-  print(paste(sum(sapply(x, function(x) sum(is.na(x)))-previous.NA), "new missing values generated"))
-  print(paste(sum((final.NA-previous.NA) > nrow(x)*max.NA), "variables excluded following max.NA criterion"))
-  if(!identical(old, x)){
-    if(track){
-      changes1 <- data.frame(variable=names(candidate_variables[candidate_variables & !((final.NA-previous.NA) > nrow(x)*max.NA)]),
-                             observation="all",
-                             original=sapply(old[,candidate_variables & !((final.NA-previous.NA) > nrow(x)*max.NA), drop=FALSE], class),
-                             new="numeric",
-                             fun="fix.numerics",
-                             row.names=NULL)
-      changes2 <- do.call(rbind, lapply(changes1$variable, function(y){
-        observations <- which(!(old[, y] %in% x[, y]))
-        tryCatch(data.frame(variable=y,
-                            observation=observations,
-                            original=old[observations, y],
-                            new=x[observations, y],
-                            fun="fix.numerics"), error = function(e) NULL)
-      }))
-      changes <- rbind(changes1, changes2)
-      if(!is.null(changes_old)){
-        attr(x, "changes") <- rbind(changes_old, changes)
-      } else {
-        attr(x, "changes") <- changes
-      }
-    }
-    return(x)
-  } else return(old)
-}
-
-
-#' Fix dates
-#'
-#' @description Fixes dates
-#' @param x A data.frame
-#' @param max.NA Maximum allowed proportion of NA values created by coercion
-#' @param min.obs Minimum number of non-NA observations allowed per variable
-#' @param locale Locale to be used for month names
-#' @param use.probs Solve ambiguities by similarity to the most frequent formats
-#' @param track Track changes?
-#' @export
-#' @examples
-#' mydata<-data.frame(Dates1=c("25/06/1983", "25-08/2014", "2001/11/01", "2008-10-01"),
-#'                    Dates2=c("01/01/85", "04/04/1982", "07/12-2016", NA),
-#'                    Numeric1=rnorm(4))
-#' fix.dates(mydata)
-fix.dates <- function (x, max.NA=0.8, min.obs=nrow(x)*0.05, locale="C", use.probs=TRUE, track=TRUE){
-  changes_old <- attr(x, "changes")
-  old <- x
-  x<-kill.factors(x)
-  x.old<-x
-  previous.NA <- sapply(x, function(x) sum(is.na(x)))
-  previous.minobs <- sum(sapply(x, function(x) sum(!is.na(x))<min.obs))
-  candidate_variables <- apply(sapply(x, function(x) grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any)
-  x[, candidate_variables] <- lapply(x[, candidate_variables, drop = FALSE], function(x) fxd(x, locale=locale, use.probs=use.probs))
-  final.NA <- sapply(x, function(x) sum(is.na(x))) - previous.NA
-  final.minobs<-sum(sapply(x, function(x) sum(!is.na(x))<min.obs))
-  x[,((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs)]<-x.old[,((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs)]
-  print(paste(sum(sapply(x, function(x) sum(is.na(x)))-previous.NA), "new missing values generated"))
-  print(paste(sum((final.NA-previous.NA) > nrow(x)*max.NA), "variables excluded following max.NA criterion"))
-  print(paste(final.minobs-previous.minobs, "variables excluded following min.obs criterion"))
-  final_variables <- candidate_variables & !(((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs))
-  if(track & sum(final_variables)>0){
-    changes1 <- data.frame(variable=names(final_variables[final_variables]),
-                           observation="all",
-                           original=sapply(old[,final_variables, drop=FALSE], class),
-                           new="Date",
-                           fun="fix.dates",
-                           row.names=NULL)
-    changes2 <- do.call(rbind, lapply(changes1$variable, function(y){
-      observations <- which(!(old[, y] %in% x[, y]))
-      tryCatch(data.frame(variable=y,
-                          observation=observations,
-                          original=old[observations, y],
-                          new=as.character(x[observations, y]),
-                          fun="fix.dates"), error = function(e) NULL)
-    }))
-    changes <- rbind(changes1, changes2)
-    if(!is.null(changes_old)){
-      attr(x, "changes") <- rbind(changes_old, changes)
-    } else {
-      attr(x, "changes") <- changes
-    }
-  }
-  return(x)
-}
-
-#' Internal function to fix.dates
-#'
-#' @description Function to format dates
-#' @param d A character vector
-#' @param locale Locale to be used for month names
-#' @param use.probs Solve ambiguities by similarity to the most frequent formats
-fxd <- function(d, locale="C", use.probs=TRUE){
-  formats <- c("%d-%m-%Y", "%d-%m-%y", "%Y-%m-%d", "%m-%d-%Y", "%m-%d-%y", "%d-%b-%Y", "%d-%B-%Y", "%d-%b-%y", "%d-%B-%y",
-               "%d%m%Y", "%d%m%y", "%Y%m%d", "%m%d%Y", "%m%d%y", "%d%b%Y", "%d%B%Y", "%d%b%y", "%d%B%y")
-  d[grep("ene", d)]<-gsub("ene", "jan", d[grep("ene", d)])
-  d[grep("abr", d)]<-gsub("abr", "apr", d[grep("abr", d)])
-  d[grep("ago", d)]<-gsub("ago", "aug", d[grep("ago", d)])
-  d[grep("dic", d)]<-gsub("dic", "dec", d[grep("dic", d)])
-  Sys.setlocale("LC_TIME", locale)
-  prueba <- lapply(formats, function(x) as.Date(tolower(gsub("--", "-", gsub('[[:punct:]]','-',d))), format=x))
-  co <-lapply(prueba, function(x) {
-    x[format.Date(x, "%Y")<100]<-NA
-    return(x)
-  })
-  to.NA <- which(sapply(d, function(x) nchar(as.character(gsub("[[:alpha:]]+", "xx", x)))>8))
-  co[c(2, 5, 8, 9, 11, 14, 17, 18)] <- lapply(co[c(2, 5, 8, 9, 11, 14, 17, 18)], function(x){
-    x[to.NA]<-NA
-    return(x)
-  })
-  if(use.probs){
-    co<-co[order(unlist(lapply(co, function(x) sum(is.na(x)))))]
-  }
-  final_dates <- do.call("c", lapply(1:length(d), function(y) na.omit(do.call("c", lapply(co, function(x) x[y])))[1]))
-  years <- as.numeric(substr(final_dates, 1, 4))
-  median_year <- median(years, na.rm=TRUE)
-  final_dates[abs(years - median_year) %>NA% abs(years-100 - median_year)] <- do.call(c, lapply(final_dates[abs(years - median_year) %>NA% abs(years-100 - median_year)], function(x) tryCatch(seq(x, length=2, by="-100 years")[2], error=function(e) NA)))
-  final_dates[abs(years - median_year) %>NA% abs(years+100 - median_year)] <- do.call(c, lapply(final_dates[abs(years - median_year) %>NA% abs(years+100 - median_year)], function(x) tryCatch(seq(x, length=2, by="100 years")[2], error=function(e) NA)))
-  return(final_dates)
-  Sys.setlocale("LC_TIME", "")
-}
-
-#' Fix levels
-#'
-#' @description Fixes levels of a factor
-#' @param data data.frame with the factor to fix
-#' @param factor_name Name of the factor to fix (as character)
-#' @param levels Optional vector with the levels names
-#' @param plot Optional: Plot cluster dendrogram?
-#' @param k Number of levels for clustering
-#' @param track Keep track of changes?
-#' @importFrom stats hclust rect.hclust cutree
-#' @export
-#' @examples
-#' mydata <- data.frame(factor1=factor(c("Control", "Treatment", "Tretament", "Tratment", "treatment",
-#' "teatment", "contrl", "cntrol", "CONTol", "not available", "na")))
-#' fix.levels(mydata, "factor1", k=4, plot=TRUE)   #Chose k to select matching levels
-#' fix.levels(mydata, "factor1", levels=c("Control", "Treatment"), k=4)
-fix.levels <- function(data, factor_name, levels=NULL, plot=FALSE, k=ifelse(!is.null(levels), length(levels), 2), track=TRUE){
-  changes_old <- attr(data, "changes")
-  x <- data[,factor_name]
-  listado<-unique(unlist(strsplit(tolower(as.character(x)), "")))
-  simil<-sapply(strsplit(tolower(as.character(x)), ""), function(x) listado %in% x)
-  rownames(simil)<-listado
-  colnames(simil)<-as.character(x)
-  clusters<-hclust(dist(t(simil), method="binary"))
-  if(plot) {
-    clusplot<-hclust(dist(unique(t(simil)), method="binary"))
-    plot(clusplot)
-    rect.hclust(clusplot, k=k, border="red")
-  }
-  groups <- cutree(clusters, k=k)
-  if (!is.null(levels)){
-    p<-1
-    for(i in groups[which(names(groups) %in% levels)]){
-      x[x %in% names(groups)[groups==i]]<-names(groups[which(names(groups) %in% levels)])[p]
-      p<-p+1
-    }
-    x[! x %in% levels]<-NA
-    output <- droplevels(factor(x))
-  } else{
-    output <- groups
-  }
-  if(track){
-    observations <- which(!(data[,factor_name] %in% output))
-    changes <- data.frame(variable=factor_name,
-                          observation=observations,
-                          original=data[observations, factor_name],
-                          new=output[observations],
-                          fun="fix.levels",
-                          row.names=NULL)
-    if(!is.null(changes_old)){
-      attr(data, "changes") <- rbind(changes_old, changes)
-    } else {
-      attr(data, "changes") <- changes
-    }
-  }
-  data[, factor_name] <- output
-  return(data)
-}
-
-#' fix.NA
-#'
-#' @description Fixes miscoded missing values
-#' @param x A data.frame
-#' @param na.strings Strings to be considered NA
-#' @param track Track changes?
-#' @export
-#' @examples
-#' mydata <- data.frame(prueba = c("", NA, "A", 4, " ", "?", "-", "+"),
-#' casa = c("", 1, 2, 3, 4, " ", 6, 7))
-#' fix.NA(mydata)
-fix.NA <- function(x, na.strings=c("^$", "^ $", "^\\?$", "^-$", "^\\.$", "^NaN$", "^NULL$", "^N/A$"), track=TRUE){
-  changes_old <- attr(x, "changes")
-  string <- paste(na.strings, collapse="|")
-  output <- as.data.frame(lapply(x, function(x) {
-    kk <- class(x)
-    x <- gsub(string, NA, x)
-    tryCatch(eval(parse(text=paste("as.", kk, "(x)", sep=""))), error=function(e) as.character(x))
-  }))
-  if(track){
-    variables <- names(x)[which(sapply(x, function(x) sum(is.na(x))) != sapply(output, function(x) sum(is.na(x))))]
-    changes <- do.call(rbind, lapply(variables, function(y){
-      observations <- which((!is.na(x[, y]) | is.nan(x[, y])) & is.na(output[, y]))
-      data.frame(variable=y,
-                 observation=observations,
-                 original=x[observations, y],
-                 new=output[observations, y],
-                 fun="fix.NA",
-                 row.names=NULL)
-    }))
-    if(!is.null(changes_old)){
-      attr(output, "changes") <- rbind(changes_old, changes)
-    } else {
-      attr(output, "changes") <- changes
-    }
-  }
-  return(output)
-}
-
-#' track_changes
-#'
-#' @description Gets a data.frame with all the changes performed by the different fix functions
-#' @param x A data.frame
-#' @export
-#' @examples
-#' mydata<-data.frame(Dates1=c("25/06/1983", "25-08/2014", "2001/11/01", "2008-10-01"),
-#'                    Dates2=c("01/01/85", "04/04/1982", "07/12-2016", NA),
-#'                    Numeric1=rnorm(4))
-#' mydata <- fix.dates(mydata)
-#' mydata
-#' track_changes(mydata)
-track_changes <- function(x){
-  attr(x, "changes")
-}
-
-#' Restore changes
-#'
-#' @description Restores original values after using a fix function
-#' @param x A data.frame
-#' @param var.names Character vector with names of the variables to be restored
-#' @export
-#' @examples
-#' mydata<-data.frame(Dates1=c("25/06/1983", "25-08/2014", "2001/11/01", "2008-10-01"),
-#'                    Dates2=c("01/01/85", "04/04/1982", "07/12-2016", NA),
-#'                    Numeric1=rnorm(4))
-#' mydata <- fix.dates(mydata)
-#' mydata
-#' mydata <- restore_changes(mydata, "Dates1")
-#' mydata
-restore_changes <- function(x, var.names){
-  changes <- track_changes(x)
-  x[, var.names] <- lapply(var.names, function(y){
-    changes.y <- changes[changes$variable == y,]
-    class(x[, y]) <- changes.y$original[changes.y$observation == "all"][1]
-    x[, y][as.numeric(changes.y$observation[changes.y$observation != "all"])] <- changes.y$original[changes.y$observation != "all"]
-    x[, y]
-  })
-  changes <- changes[!changes$variable %in% var.names, ]
-  attr(x, "changes") <- changes
-  x
 }
 
 #' Peek
@@ -777,15 +333,9 @@ restore_changes <- function(x, var.names){
 peek <- function(x, n=10, which=1:ncol(x)){
   class <- sapply(x[,which], class)
   range <- paste("(", sapply(x[,which], function(x) {
-    if(class(x) %in% c("character", "factor")){
-      length(unique(x))
-    }
-    else if(is.numeric(x)){
-      paste(round(range(x, na.rm=TRUE),2), collapse="-")
-    }
-    else {
-      ""
-    }
+    ifelse(class(x) %in% c("character", "factor"), length(unique(x)),
+           ifelse(class(x) %in% c("Date") | is.numeric(x), paste(round(range(x, na.rm=TRUE),2), collapse="; "),
+                  ""))
   }
   ), ")", sep="")
   blank <- rep("", length=length(class))
@@ -794,29 +344,6 @@ peek <- function(x, n=10, which=1:ncol(x)){
   cat("Data frame with ", nrow(x), " rows (showing ", length(which), " of ", ncol(x), " variables) \n \n")
   print(output, quote = FALSE)
 }
-
-#' Nice names
-#'
-#' @description Changes names of a data frame to ease work with them
-#' @param dat A data.frame
-#' @export
-#' @examples
-#' d <- data.frame('Variable 1'=NA, '% Response'=NA, ' Variable     3'=NA,check.names=FALSE)
-#' names(d)
-#' names(nice_names(d))
-nice_names<-function (dat){
-  old_names <- names(dat)
-  new_names <- gsub("x_","",gsub("_$", "",tolower(gsub("[_]+", "_",gsub("[.]+", "_",make.names(
-    gsub("^[ ]+", "",gsub("%", "percent",gsub("\"", "",gsub("'", "",gsub("\u00BA", "", old_names)))))))))))
-  dupe_count <- sapply(1:length(new_names), function(i) {
-    sum(new_names[i] == new_names[1:i])
-  })
-  new_names[dupe_count > 1] <- paste(new_names[dupe_count >
-                                                 1], dupe_count[dupe_count > 1], sep = "_")
-  new_names <- iconv(new_names, to = "ASCII//TRANSLIT")
-  stats::setNames(dat, new_names)
-}
-
 
 #' Kill factors
 #'
@@ -834,7 +361,6 @@ kill.factors <- function(dat, k=10){
   dat[filter] <- lapply(dat[filter], as.character)
   return(dat)
 }
-
 
 #' Good to go
 #'
@@ -854,8 +380,6 @@ good2go <- function(path=getwd(), info=TRUE, load=TRUE){
   if(load) lapply(p_list, function(x) require(x, character.only = TRUE, quietly=TRUE))
   if(info) print(paste("Packages:", paste(p_list, collapse=", ")), quote=FALSE)
 }
-
-
 
 #' Forge
 #'
@@ -941,7 +465,6 @@ unforge <- function(data, origin, variables, prefix=origin){
   out_data
 }
 
-
 #' Search scripts
 #'
 #' @description Searches for strings in R script files
@@ -959,4 +482,3 @@ search_scripts <- function(string, path=getwd(), recursive=TRUE){
   names(listado) <- files
   listado[sapply(listado, length) != 0]
 }
-
