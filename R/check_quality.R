@@ -14,11 +14,11 @@ may.numeric <- function(x) suppressWarnings(!is.na(numeros(x)))
 #' @return A matrix with the lowest and highest values from a vector
 extreme_values <- function(x, n=5, id=NULL){
   h<-matrix(rep("", n*2), ncol=n)
-  m<-matrix(sort(na.omit(numeros(x)))[c(1:n, (length(na.omit(numeros(x)))-(n-1)):length(na.omit(numeros(x))))], nrow=2, byrow=TRUE)
+  m<-matrix(sort(na.omit(x))[c(1:n, (length(na.omit(x))-(n-1)):length(na.omit(x)))], nrow=2, byrow=TRUE)
   if(!is.null(id)){
-    h<- matrix(id[order(numeros(x))][c(1:n, (length(na.omit(numeros(x)))-(n-1)):length(na.omit(numeros(x))))], nrow=2, byrow=TRUE)
+    h<- matrix(id[order(x)][c(1:n, (length(na.omit(x))-(n-1)):length(na.omit(x)))], nrow=2, byrow=TRUE)
   }
-  return(list(Values=t(m), IDs=t(h)))
+  return(list(Values=setNames(data.frame(t(m)), c("Low", "High")), IDs=setNames(data.frame(t(h)), c("Low", "High"))))
 }
 
 #' Brute numeric coercion
@@ -49,7 +49,7 @@ numeros <- function(x){
 
 #' True TRUE
 #'
-#' @description Makes possible logical comparisons against NULL and NA values
+#' @description Makes possible vectorized logical comparisons against NULL and NA values
 #' @param x A logical vector
 #' @return A logical vector
 #' @export
@@ -134,7 +134,7 @@ check_quality <- function(x, id=1:length(x), plot=TRUE, numeric=NULL, n=ifelse(i
       n<-max(c(n, 5*!call_n))} else num <- FALSE
   }
   if(num & !is.numeric(x)){
-    warning("Numeric variable encoded as a factor. Use fix.numerics() to amend", call.=FALSE)
+    warning("Numeric variable encoded as a factor. Use fix_numerics() to amend", call.=FALSE)
     off<-table(x)[is.na(numeros(names(table(x))))]
     offending_values<-paste(paste(names(off), " (", off, ")", sep=""), collapse="; ", sep="")
   }
@@ -207,4 +207,44 @@ workspace <- function(table=FALSE) {
 #' workspace_sapply("data.frame", "summary")  #Gives a summary of each data.frame
 workspace_sapply <- function(object_class, action="summary"){
   sapply(workspace()[[object_class]], function(x) get(action)(get(x)), simplify=FALSE)
+}
+
+#' Check for bivariate outliers
+#'
+#' @description Checks for bivariate outliers in a data.frame
+#' @param x A data.frame object
+#' @param threshold_r Threshold for the case of two continuous variables
+#' @param threshold_b Threshold for the case of one continuous and one categorical variable
+#' @return A data frame with all the observations considered as bivariate outliers
+#' @importFrom stats cooks.distance
+#' @importFrom utils combn
+#' @export
+#' @examples
+#' bivariate_outliers(iris)
+bivariate_outliers <- function(x, threshold_r=10, threshold_b=1.5){
+  pairwise_comb <- combn(1:ncol(x), 2)
+  outliers <- apply(pairwise_comb, 2, function(y){
+    if(all(sapply(x[,y], is.numeric))){
+      data_l <- data.frame(x=x[ , y[1]], y=x[ , y[2]])
+      mod_a <- stats::rstudent(lm(x ~ y + I(y^2) + I(y^3), data=data_l, na.action = "na.exclude"))^2
+      mod_b <- stats::rstudent(lm(y ~ x + I(x^2) + I(x^3), data=data_l, na.action = "na.exclude"))^2
+      rs <- (mod_a+mod_b)/mean(mod_a+mod_b, na.rm=TRUE)
+      if(any(rs %>NA% threshold_r)){
+        data.frame(row=rownames(x)[which(rs %>NA% threshold_r)], variable1=names(x)[y[1]], value1=x[,y[1]][which(rs %>NA% threshold_r)],
+                   variable2=names(x)[y[2]], value2=x[,y[2]][which(rs %>NA% threshold_r)])
+      }
+    } else{
+      if(sum(sapply(x[,y], is.numeric) * rev(sapply(x[,y], is.factor))) == 1){
+        factor <- sapply(x[,y], is.factor)
+        case <- unsplit(lapply(split(x[,y][,!factor], x[,y][,factor]), function(x) outliers(x, threshold_b)), x[,y][,factor])
+        if(any(case)){
+          data.frame(row=rownames(x)[ttrue(case)], variable1=names(x)[y[1]], value1=as.character(x[,y[1]][ttrue(case)]),
+                     variable2=names(x)[y[2]], value2=as.character(x[,y[2]][ttrue(case)]))
+        }
+      }
+    }
+  })
+  output <- do.call(rbind, as.list(outliers))
+  rownames(output) <- NULL
+  output
 }

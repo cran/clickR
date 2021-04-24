@@ -87,7 +87,7 @@ prop_min <- function(x, ignore.na=TRUE){sort(table(x))[1]/(length(x)-ignore.na*s
 
 #' Computes Goodman and Kruskal's tau
 #'
-#' @description Returns Goodman and Kruskal's tay measure of association between two categorical variables
+#' @description Returns Goodman and Kruskal's tau measure of association between two categorical variables
 #' @param x A categorical variable
 #' @param y A categorical variable
 #' @return Goodman and Kruskal's tau
@@ -112,27 +112,28 @@ GK_assoc <- function(x, y){
 #' @param z Number of decimal places
 #' @param ignore.na If TRUE NA values will not count for relative frequencies calculations
 #' @param by Factor variable definining groups for the summary
+#' @param print Should results be printed?
 #' @return Summary of the data
 #' @importFrom stats density dist family median na.omit quantile sd var
 #' @export
 #' @examples
 #' descriptive(iris)
 #' descriptive(iris, by="Species")
-descriptive <- function(x, z=3, ignore.na=TRUE, by=NULL){
+descriptive <- function(x, z=3, ignore.na=TRUE, by=NULL, print=TRUE){
   #Data.frame
   if(!is.data.frame(x)){
     x<-data.frame(x)
   }
-  x<-x[, !sapply(x, function(x) all(is.na(x)))]
+  x<-x[, !sapply(x, function(x) all(is.na(x))), drop=FALSE]
 
   if(!is.null(by) && by %in% names(x)){
-    by_v <- x[,by]
-    x_sin <- x[,!colnames(x) == by, drop=FALSE]
-    if (length(x_sin)==0){
-      descriptive(x,z,ignore.na,by=NULL)
+    by_v <- x[, by]
+    x_sin <- x[, !colnames(x) == by, drop=FALSE]
+    if (length(x_sin) == 0){
+      descriptive(x, z, ignore.na, by=NULL)
       stop("Only one variable in the data. Can't be used as grouping variable")
     }
-    x_sin <- x_sin[!is.na(by_v),]
+    x_sin <- x_sin[!is.na(by_v), ]
     by_v <- by_v[!is.na(by_v)]
     by_v <- factor(by_v)
     niveles <- levels(by_v)
@@ -141,54 +142,132 @@ descriptive <- function(x, z=3, ignore.na=TRUE, by=NULL){
     cat("-------------------------------")
     cat("\n")
     for (i in 1:length(niveles)){
-      x_g <- x_sin[by_v==niveles[i],]
+      x_g <- x_sin[by_v == niveles[i], ]
       cat("Level ", by, ": ", niveles[i], sep="")
       cat("\n")
-      descriptive(x=x_g,z=z,ignore.na=ignore.na,by=NULL)
+      descriptive(x=x_g, z=z, ignore.na=ignore.na, by=NULL)
       cat("\n")
       cat("-------------------------------")
       cat("\n")
     }
   } else{
     #Splitter (Splits data.frame: Numeric and categorical part)
-    nums <- sapply(x, is.numeric)
+    nums <- sapply(x, class)
 
     #Numeric summary
-    resumen<-function(y){
-      resumen1 <- round(c(min(y, na.rm=T), quantile(y, probs=0.25, na.rm=T), median(y, na.rm=T), quantile(y, probs=0.75, na.rm=T), max(y, na.rm=T), mean(y, na.rm=T), sd(y, na.rm=T), kurtosis(y), skewness(y)),z)
+    resumen <- function(y){
+      resumen1 <- round(c(min(y, na.rm=TRUE),
+                          quantile(y, probs=0.25, na.rm=TRUE),
+                          median(y, na.rm=TRUE),
+                          quantile(y, probs=0.75, na.rm=T),
+                          max(y, na.rm=TRUE),
+                          mean(y, na.rm=TRUE),
+                          sd(y, na.rm=TRUE),
+                          kurtosis(y),
+                          skewness(y)),z)
       names(resumen1) <- c("Min", "1st Q.", "Median", "3rd Q.", "Max", "Mean", "SD", "Kurtosis", "Skewness")
       distribution <- c("|", rep("-", 28), "|")
       scaled_Y <- scale_01(y)
-      tryCatch(distribution[(nearest((resumen1["1st Q."]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))+1):(nearest((resumen1["3rd Q."]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))-1)]<-"#", error=function(e) NA)
-      tryCatch(distribution[nearest((resumen1["1st Q."]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))]<-"[", error=function(e) NA)
-      tryCatch(distribution[nearest((resumen1["3rd Q."]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))]<-"]", error=function(e) NA)
-      tryCatch(distribution[nearest((resumen1["Median"]-resumen1["Min"])/(resumen1["Max"]-resumen1["Min"]))]<-":", error=function(e) NA)
-      return(data.frame(t(resumen1), Modes=moda_cont(y), NAs=sum(is.na(y)), Distribution=paste(distribution, collapse=""), check.names = FALSE, stringsAsFactors = FALSE))
+      tryCatch(distribution[(nearest((resumen1["1st Q."] - resumen1["Min"])/
+                                       (resumen1["Max"] - resumen1["Min"]))+1):
+                              (nearest((resumen1["3rd Q."] - resumen1["Min"])/
+                                         (resumen1["Max"] - resumen1["Min"]))-1)] <- "#", error = function(e) NA)
+      tryCatch(distribution[nearest((resumen1["1st Q."] - resumen1["Min"])/
+                                      (resumen1["Max"] - resumen1["Min"]))] <- "[", error = function(e) NA)
+      tryCatch(distribution[nearest((resumen1["3rd Q."] - resumen1["Min"])/
+                                      (resumen1["Max"] - resumen1["Min"]))] <- "]", error = function(e) NA)
+      tryCatch(distribution[nearest((resumen1["Median"] - resumen1["Min"])/
+                                      (resumen1["Max"] - resumen1["Min"]))] <- ":", error = function(e) NA)
+      return(data.frame(t(resumen1), Modes=moda_cont(y), NAs=sum(is.na(y)),
+                        Distribution = paste(distribution, collapse=""), check.names = FALSE, stringsAsFactors = FALSE))
     }
-
-    resumen2<-function(w){
-      resumen2<-c(length(table(w)), abbreviate(paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/"), minlength = min(20, nchar(paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/"))), named=FALSE), moda(w), round(prop_may(w, ignore.na = ignore.na),z), antimoda(w), round(prop_min(w, ignore.na = ignore.na),z), sum(is.na(w)))
+    #Character and factor summary
+    resumen2 <- function(w){
+      resumen2 <- c(length(table(w)),
+                    abbreviate(paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/"),
+                               minlength = min(20, nchar(paste(na.omit(names(sort(-table(w)))[1:5]), collapse="/"))),
+                               named=FALSE),
+                    moda(w), round(prop_may(w, ignore.na = ignore.na),z), antimoda(w),
+                    round(prop_min(w, ignore.na = ignore.na),z), sum(is.na(w)))
       names(resumen2)<- c("N. Classes", "Classes", "Mode", "Prop. mode", "Anti-mode", "Prop. Anti-mode", "NAs")
       data.frame(t(resumen2), check.names = FALSE, stringsAsFactors = FALSE)
     }
+    #Date summary
+    resumen3<-function(y){
+      resumen3 <- c(as.character(min(y, na.rm=TRUE)),
+                    as.character(as.Date(quantile(as.numeric(y), probs=0.25, na.rm=TRUE),
+                                         origin=as.Date("1970-01-01"))),
+                    as.character(median(y, na.rm=TRUE)),
+                    as.character(as.Date(quantile(as.numeric(y), probs=0.75, na.rm=TRUE),
+                                         origin=as.Date("1970-01-01"))),
+                    as.character(max(y, na.rm=TRUE)),
+                    as.character(mean(y, na.rm=TRUE)),
+                    round(sd(y, na.rm=TRUE), z),
+                    round(kurtosis(as.numeric(y)), z),
+                    round(skewness(as.numeric(y)), z))
+      names(resumen3) <- c("Min", "1st Q.", "Median", "3rd Q.", "Max", "Mean", "SD", "Kurtosis", "Skewness")
+      distribution <- c("|", rep("-", 28), "|")
+      scaled_Y <- scale_01(as.numeric(y))
+      tryCatch(distribution[(nearest((as.numeric(as.Date(resumen3["1st Q."])) -
+                                        as.numeric(as.Date(resumen3["Min"]))) /
+                                      (as.numeric(as.Date(resumen3["Max"])) -
+                                        as.numeric(as.Date(resumen3["Min"])))) + 1) :
+                            (nearest((as.numeric(as.Date(resumen3["3rd Q."])) -
+                                        as.numeric(as.Date(resumen3["Min"]))) /
+                                      (as.numeric(as.Date(resumen3["Max"])) -
+                                        as.numeric(as.Date(resumen3["Min"])))) - 1)] <- "#", error = function(e) NA)
+      tryCatch(distribution[nearest((as.numeric(as.Date(resumen3["1st Q."])) -
+                                       as.numeric(as.Date(resumen3["Min"]))) /
+                                     (as.numeric(as.Date(resumen3["Max"])) -
+                                       as.numeric(as.Date(resumen3["Min"]))))] <- "[", error = function(e) NA)
+      tryCatch(distribution[nearest((as.numeric(as.Date(resumen3["3rd Q."])) -
+                                       as.numeric(as.Date(resumen3["Min"]))) /
+                                     (as.numeric(as.Date(resumen3["Max"])) -
+                                       as.numeric(as.Date(resumen3["Min"]))))] <- "]", error = function(e) NA)
+      tryCatch(distribution[nearest((as.numeric(as.Date(resumen3["Median"])) -
+                                       as.numeric(as.Date(resumen3["Min"]))) /
+                                     (as.numeric(as.Date(resumen3["Max"])) -
+                                       as.numeric(as.Date(resumen3["Min"]))))] <- ":", error = function(e) NA)
+      return(data.frame(t(resumen3), NAs=sum(is.na(y)), Distribution=paste(distribution, collapse=""),
+                        check.names = FALSE, stringsAsFactors = FALSE))
+    }
+
     #Results
+    if(print){
     cat(paste("Data frame with", dim(x)[1], "observations and", dim(x)[2], "variables."))
     cat("\n")
     cat("\n")
-    if("TRUE" %in% nums){
-      cat("Numeric variables (", sum(nums), ")", sep="")
-      cat("\n")
-      summary1 <- do.call(rbind, lapply(x[,nums], resumen))
-      print(summary1)
+    }
+    if(any(nums %in% c("numeric", "integer"))){
+      summary1 <- do.call(rbind, lapply(x[,nums %in% c("numeric", "integer"), drop=FALSE], resumen))
+      if(print){
+        cat("Numeric variables (", sum(nums %in% c("numeric", "integer")), ")", sep="")
+        cat("\n")
+        print(summary1)
+      }
     } else { summary1 <- NULL}
-    if("FALSE" %in% nums){
-      summary2 <- do.call(rbind, lapply(x[,!nums, drop=FALSE], resumen2))
-      cat("\n")
-      cat("Categorical variables (", dim(x)[2]-sum(nums), ")", sep="")
-      cat("\n")
-      print(summary2, quote=FALSE)
+
+    if(any(nums %in% c("factor", "character", "logical"))){
+      summary2 <- do.call(rbind, lapply(x[, nums %in% c("factor", "character", "logical"), drop=FALSE], resumen2))
+      if(print){
+        cat("\n")
+        cat("Categorical variables (", sum(nums %in% c("factor", "character", "logical")), ")", sep="")
+        cat("\n")
+        print(summary2, quote=FALSE)
+      }
     } else { summary2 <- NULL}
-    invisible(list(numeric=summary1, character=summary2))
+
+    if(any(nums %in% c("Date"))){
+      summary3 <- do.call(rbind, lapply(x[, nums %in% c("Date"), drop=FALSE], resumen3))
+      if(print){
+        cat("\n")
+        cat("Date variables (", sum(nums %in% c("Date")), ")", sep="")
+        cat("\n")
+        print(summary3, quote=FALSE)
+      }
+    } else { summary3 <- NULL}
+
+    invisible(list(numeric = summary1, character = summary2, date = summary3))
   }
 }
 
@@ -227,7 +306,7 @@ cluster_var <- function(x, margins=c(8,1)){
 #' @param show.x Should the x-axis be plotted?
 #' @param show.y Should the y-axis be plotted?
 #' @param ... further arguments passed to order()
-#' @importFrom graphics par image mtext
+#' @importFrom graphics par image mtext axis
 #' @importFrom methods hasArg
 #' @export
 #' @examples
@@ -239,18 +318,18 @@ mine.plot <- function(x, fun=is.na, spacing=5, sort=F, show.x=TRUE, show.y=TRUE,
     orden <- order(sapply(x, function(x) sum(fun(x))), ...)
     x <- x[,orden]
   }
-  old.warn <- options(warn=-1)
-  pad<- ceiling(dim(x)[2]/30)
+  old.warn <- options(warn = -1)
+  pad <- ceiling(dim(x)[2]/30)
   old.par <- par(mar=c(8, 4.5, 6, 4))
   image(t(sapply(x, fun)), xaxt="n", yaxt="n", col=colorRampPalette(c("lightcyan4", "darkred"))(2), ...)
   if(show.x){
     axis(1, at=seq(0, 1, length=dim(x)[2]), labels=paste(names(x), "\n", "(", sapply(x, class), ")", sep=""), las=2, lwd=0, cex.axis=0.8)
   }
   if(show.y){
-    axis(2, at=seq(0, dim(x)[1], by=spacing)/dim(x)[1], labels=seq(0, dim(x)[1], by=spacing), las=1, cex.axis=0.6)
+    axis(2, at = seq(0, dim(x)[1], by = spacing)/dim(x)[1], labels = seq(0, dim(x)[1], by = spacing), las = 1, cex.axis = 0.6)
   }
   for(i in 1:pad){
-    axis(3, at=seq(0, 1, length=dim(x)[2])[seq(0+i, dim(x)[2], by=pad)],
+    axis(3, at=seq(0, 1, length=dim(x)[2])[seq(0 + i, dim(x)[2], by=pad)],
          labels=sapply(x, function(x) round(100*sum(fun(x))/length(x)))[seq(0+i, dim(x)[2], by=pad)], cex.axis=0.6, lwd=0, line=-1+i/2)
   }
   if(!hasArg("main")) mtext(paste("%", as.character(substitute(fun))), 3, line=max(pad/1.5, 2.5), cex=1.2)
@@ -260,10 +339,10 @@ mine.plot <- function(x, fun=is.na, spacing=5, sort=F, show.x=TRUE, show.y=TRUE,
     out <- fun(x[,y])
     id <- which(out)
     value <- x[,y][out]
-    if(ttrue(any(out))) data.frame(variable=variable, id=id, value=as.character(value))
+    if(ttrue(any(out))) data.frame(variable = variable, id = id, value = as.character(value))
   }))
   output2 <- sapply(x, function(x) round(sum(fun(x))/length(x), 2))
-  return(list(list=output1, summary=output2))
+  return(list(list = output1, summary = output2))
   par(old.par)
 }
 
@@ -271,20 +350,21 @@ mine.plot <- function(x, fun=is.na, spacing=5, sort=F, show.x=TRUE, show.y=TRUE,
 #'
 #' @description Function for detecting outliers based on the boxplot method
 #' @param x A vector
+#' @param threshold Threshold (as multiple of the IQR) to consider an observation as outlier
 #' @export
 #' @examples
 #' outliers(iris$Petal.Length)
 #' outliers(airquality$Ozone)
-outliers <- function(x){
+outliers <- function(x, threshold=1.5){
   if(any(c("Date", "POSIXt") %in% class(x))){
     quantiles <- quantile(as.POSIXct(x), probs=c(0.25, 0.75), na.rm=TRUE)
-    unclass(as.POSIXct(x)) %<NA% (unclass(quantiles["25%"]) - 1.5*(unclass(quantiles["75%"])-unclass(quantiles["25%"]))) |
-      unclass(as.POSIXct(x)) %>NA% (unclass(quantiles["75%"]) + 1.5*(unclass(quantiles["75%"])-unclass(quantiles["25%"])))
+    unclass(as.POSIXct(x)) %<NA% (unclass(quantiles["25%"]) - threshold*(unclass(quantiles["75%"])-unclass(quantiles["25%"]))) |
+      unclass(as.POSIXct(x)) %>NA% (unclass(quantiles["75%"]) + threshold*(unclass(quantiles["75%"])-unclass(quantiles["25%"])))
   } else{
     if(is.numeric(x)){
       quantiles <- quantile(x, probs=c(0.25, 0.75), na.rm=TRUE)
-      x %<NA% (quantiles["25%"] - 1.5*(quantiles["75%"]-quantiles["25%"])) |
-        x %>NA% (quantiles["75%"] + 1.5*(quantiles["75%"]-quantiles["25%"]))
+      x %<NA% (quantiles["25%"] - threshold*(quantiles["75%"]-quantiles["25%"])) |
+        x %>NA% (quantiles["75%"] + threshold*(quantiles["75%"]-quantiles["25%"]))
     } else rep(NA, length(x))
   }
 }
