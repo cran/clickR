@@ -18,11 +18,7 @@ nice_names <- function(x, select=1:ncol(x), tolower=TRUE, track=TRUE){
   new_names <- gsub("x_|X_","",gsub("_$", "", gsub("[_]+", "_",gsub("[.]+", "_",make.names(
     iconv(gsub("^[ ]+", "",gsub("%", "percent",gsub("\"", "",gsub("'", "",gsub("\u00BA", "", old_names[select]))))), to="ASCII//TRANSLIT", sub="byte"))))))
   if(tolower) new_names <- tolower(new_names)
-  dupe_count <- sapply(1:length(new_names), function(i) {
-    sum(new_names[i] == new_names[1:i])
-  })
-  new_names[dupe_count > 1] <- paste(new_names[dupe_count >
-                                                 1], dupe_count[dupe_count > 1], sep = "_")
+  new_names <- make.unique(new_names, sep="_")
   names(x)[select] <- new_names
   new_names <- names(x)
   if(!identical(old_names, new_names)){
@@ -63,10 +59,10 @@ nice_names <- function(x, select=1:ncol(x), tolower=TRUE, track=TRUE){
 fix_factors<-function(x, k=5, select=1:ncol(x), drop=TRUE, track=TRUE){
   changes_old <- attr(x, "changes")
   old <- x
-  candidate_variables <- (sapply(x, function(x) (is.numeric(x) |
-                                                   is.character(x)) &
-                                   length(unique(x))<=k)) |
-    (sapply(x, function(x) is.factor(x)))
+  candidate_variables <- sapply(x, function(x){
+    ((is.numeric(x) | is.character(x)) & length(unique(x)) <=k) |
+      is.factor(x)
+  })
   candidate_variables[-select] <- FALSE
   x[, candidate_variables] <- lapply(x[, candidate_variables, drop=FALSE],
                                      function(x) {
@@ -103,74 +99,98 @@ fix_factors<-function(x, k=5, select=1:ncol(x), drop=TRUE, track=TRUE){
 #' changes will be reverted and the variable will remain unchanged.
 #' @param select Numeric vector with the positions (all by default) to be affected by the function
 #' @param track Keep track of changes?
+#' @param parallel Should the computations be performed in parallel? Set up strategy first with future::plan()
+#' @importFrom future nbrOfWorkers plan
+#' @importFrom future.apply future_lapply
 #' @export
 #' @examples
 #' mydata<-data.frame(Numeric1=c(7.8, 9.2, "5.4e+2", 3.3, "6,8", "3..3"),
 #'                    Numeric2=c(3.1, 1.2, "3.4s", "48,500.04 $", 7, "$  6.4"))
 #' descriptive(mydata)
 #' descriptive(fix_numerics(mydata, k=5))
-fix_numerics <- function(x, k=8, max.NA=0.2, select=1:ncol(x), track=TRUE){
-  changes_old <- attr(x, "changes")
-  old <- x
-  previous.NA<- sapply(x, function(x) sum(is.na(x)))
-  candidate_variables <- apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !(is.numeric(x) | inherits(x, 'Date'))) & sapply(x, function(x) length(unique(x))>=k)
-  candidate_variables[-select] <- FALSE
-  percent_variables <- apply(sapply(x, function(x) grepl("%", as.character(x))), 2, any)
-  sci_notation_variables <- apply(sapply(x, function(x) grepl("[0-9](e|E)([0-9]|-[0-9]|\\+[0-9])", as.character(x))), 2, any)
-  thousand_separators <- apply(sapply(x, function(x) grepl(".\\..{3},", x) | grepl(".,.{3}\\.", x) | grepl(".\\..{3}\\.", x) | grepl(".\\,.{3}\\,", x)), 2, any)
-  x[, candidate_variables & percent_variables] <- lapply(x[, candidate_variables & percent_variables, drop=FALSE], function(x){
-    x[grepl("%", x)] <- numeros(gsub("%", "", x[grepl("%", x)]))/100
-    x})
-  x[, candidate_variables & sci_notation_variables] <- lapply(x[, candidate_variables & sci_notation_variables, drop = FALSE],
+fix_numerics <- function(x, k=8, max.NA=0.2, select=1:ncol(x), track=TRUE, parallel=TRUE){
+  if(parallel){
+    pplan <- attr(future::plan(), "call")
+    message("Your parallel configuration is ", if(!is.null(pplan)) pplan else "single core")
+    if(dim(x)[1]/future::nbrOfWorkers() < 30) warning("Data splitted into many chunks. Please set fewer workers!")
+    split_factor <- factor(sample(1:future::nbrOfWorkers(), dim(x)[1], replace=TRUE))
+    split_x <- split(x, split_factor)
+    suppressMessages(
+      split_proc <- future.apply::future_lapply(split_x, function(x) fix_numerics(x, k=k, max.NA=max.NA, select=select, track=track, parallel=FALSE))
+    )
+    x <- unsplit(split_proc, f=split_factor)
+    changes_par <- do.call(rbind, lapply(split_proc, function(x) attributes(x)$changes))
+    attr(x, "changes") <- changes_par[!duplicated(changes_par),]
+    attr(x, "messages") <- colSums(do.call(rbind, lapply(split_proc, function(x) attributes(x)$messages)))/c(1, future::nbrOfWorkers())
+  } else{
+    changes_old <- attr(x, "changes")
+    old <- x
+    previous.NA<- sapply(x, function(x) sum(is.na(x)))
+    candidate_variables <- apply(sapply(x, function(x) grepl("[0-9]", as.character(x))), 2, any) & sapply(x, function(x) !(is.numeric(x) | inherits(x, 'Date'))) & sapply(x, function(x) length(unique(x))>=k)
+    candidate_variables[-select] <- FALSE
+    percent_variables <- apply(sapply(x, function(x) grepl("%", as.character(x))), 2, any)
+    sci_notation_variables <- apply(sapply(x, function(x) grepl("[0-9](e|E)([0-9]|-[0-9]|\\+[0-9])", as.character(x))), 2, any)
+    thousand_separators <- apply(sapply(x, function(x) grepl(".\\..{3},", x) | grepl(".,.{3}\\.", x) | grepl(".\\..{3}\\.", x) | grepl(".\\,.{3}\\,", x)), 2, any)
+    x[, candidate_variables & percent_variables] <- lapply(x[, candidate_variables & percent_variables, drop=FALSE], function(x){
+      x[grepl("%", x)] <- numeros(gsub("%", "", x[grepl("%", x)]))/100
+      x})
+    x[, candidate_variables & sci_notation_variables] <- lapply(x[, candidate_variables & sci_notation_variables, drop = FALSE],
                                                               function(x){
                                                                 mult_factor <- sapply(strsplit(x, "e|E"), function(x) 10^as.numeric(x[2]))
                                                                 mult_factor[is.na(mult_factor)] <- 1
                                                                 base <- sapply(strsplit(x, "e|E"), function(x) x[1])
                                                                 numeros(base)*mult_factor
                                                               })
-  x[, thousand_separators & candidate_variables] <- lapply(x[, candidate_variables & thousand_separators, drop=FALSE], function(x){
-    point_thousands <- sum(grepl("\\..*,", x) | grepl("\\..{3}\\.", x))
-    comma_thousands <- sum(grepl(",.*\\.", x) | grepl(",.{3},", x))
-    if(point_thousands > comma_thousands){
-      x[grepl("\\.", x) & (!(grepl("\\..{3}$", x) | grepl("\\..{3},", x)) | grepl(",.*\\.", x))] <- NA
-      x <- gsub("\\.", "", x)
-    }
-    if(comma_thousands > point_thousands){
-      x[grepl(",", x) & (!(grepl(",.{3}$", x) | grepl(",.{3}.", x)) | grepl("\\..*,", x))] <- NA
-      x <- gsub(",", "", x)
-    }
-    x
-  })
-  x[, candidate_variables & !sci_notation_variables] <- lapply(x[, candidate_variables & !sci_notation_variables, drop=FALSE], function(x) numeros(x))
-  final.NA<-sapply(x, function(x) sum(is.na(x)))-previous.NA
-  x[,(final.NA-previous.NA) > nrow(x)*max.NA] <- old[,(final.NA-previous.NA) > nrow(x)*max.NA]
-  print(paste(sum(sapply(x, function(x) sum(is.na(x)))-previous.NA), "new missing values generated"))
-  print(paste(sum((final.NA-previous.NA) > nrow(x)*max.NA), "variables excluded following max.NA criterion"))
-  if(!identical(old, x)){
-    if(track){
-      changes1 <- data.frame(variable=names(candidate_variables[candidate_variables & !((final.NA-previous.NA) > nrow(x)*max.NA)]),
-                             observation="all",
-                             original=sapply(old[,candidate_variables & !((final.NA-previous.NA) > nrow(x)*max.NA), drop=FALSE], class),
-                             new="numeric",
-                             fun="fix_numerics",
-                             row.names=NULL)
-      changes2 <- do.call(rbind, lapply(changes1$variable, function(y){
-        observations <- rownames(x)[which(!(old[, y] %in% x[, y]))]
-        tryCatch(data.frame(variable=y,
-                            observation=observations,
-                            original=old[observations, y],
-                            new=x[observations, y],
-                            fun="fix_numerics"), error = function(e) NULL)
-      }))
-      changes <- rbind(changes1, changes2)
-      if(!is.null(changes_old)){
-        attr(x, "changes") <- rbind(changes_old, changes)
-      } else {
-        attr(x, "changes") <- changes
+    x[, thousand_separators & candidate_variables] <- lapply(x[, candidate_variables & thousand_separators, drop=FALSE], function(x){
+      point_thousands <- sum(grepl("\\..*,", x) | grepl("\\..{3}\\.", x))
+      comma_thousands <- sum(grepl(",.*\\.", x) | grepl(",.{3},", x))
+      if(point_thousands > comma_thousands){
+        x[grepl("\\.", x) & (!(grepl("\\..{3}$", x) | grepl("\\..{3},", x)) | grepl(",.*\\.", x))] <- NA
+        x <- gsub("\\.", "", x)
       }
-    }
-    return(x)
-  } else return(old)
+      if(comma_thousands > point_thousands){
+        x[grepl(",", x) & (!(grepl(",.{3}$", x) | grepl(",.{3}.", x)) | grepl("\\..*,", x))] <- NA
+        x <- gsub(",", "", x)
+      }
+      x
+      })
+    x[, candidate_variables & !sci_notation_variables] <- lapply(x[, candidate_variables & !sci_notation_variables, drop=FALSE], function(x) numeros(x))
+    final.NA<-sapply(x, function(x) sum(is.na(x)))-previous.NA
+    x[,(final.NA-previous.NA) > nrow(x)*max.NA] <- old[,(final.NA-previous.NA) > nrow(x)*max.NA]
+    messages <- data.frame(new_missings = sum(sapply(x, function(x) sum(is.na(x)))-previous.NA),
+                           excl_max_NA = sum((final.NA-previous.NA) > nrow(x)*max.NA))
+    attr(x, "messages") <- messages
+    if(sum(candidate_variables)>0){
+      if(track){
+        changes1 <- data.frame(variable=names(candidate_variables[candidate_variables & !((final.NA-previous.NA) > nrow(x)*max.NA)]),
+                               observation="all",
+                               original=sapply(old[,candidate_variables & !((final.NA-previous.NA) > nrow(x)*max.NA), drop=FALSE], class),
+                               new="numeric",
+                               fun="fix_numerics",
+                               row.names=NULL)
+        changes2 <- do.call(rbind, lapply(changes1$variable, function(y){
+          observations <- rownames(x)[which(!(old[, y] %in% x[, y]))]
+          tryCatch(data.frame(variable=y,
+                              observation=observations,
+                              original=old[observations, y],
+                              new=x[observations, y],
+                              fun="fix_numerics"), error = function(e) NULL)
+          }))
+        changes <- rbind(changes1, changes2)
+        if(!is.null(changes_old)){
+          attr(x, "changes") <- rbind(changes_old, changes)
+          } else {
+            attr(x, "changes") <- changes
+          }
+      }
+      x
+      } else{
+        x <- old
+        x
+  }}
+  message(attr(x, "messages")[1], " new missing values generated")
+  message(attr(x, "messages")[2], " variables excluded following max.NA criterion")
+  x
 }
 
 #' Fix dates
@@ -191,54 +211,76 @@ fix_numerics <- function(x, k=8, max.NA=0.2, select=1:ncol(x), track=TRUE){
 #' date format in the column.
 #' @param select Numeric vector with the positions (all by default) to be affected by the function
 #' @param track Track changes?
+#' @param parallel Should the computations be performed in parallel? Set up strategy first with future::plan()
+#' @importFrom future nbrOfWorkers plan
+#' @importFrom future.apply future_lapply
 #' @export
 #' @examples
 #' mydata<-data.frame(Dates1=c("25/06/1983", "25-08/2014", "2001/11/01", "2008-10-01"),
 #'                    Dates2=c("01/01/85", "04/04/1982", "07/12-2016", "September 24, 2020"),
 #'                    Numeric1=rnorm(4))
 #' fix_dates(mydata)
-fix_dates <- function (x, max.NA=0.8, min.obs=nrow(x)*0.05, use.probs=TRUE, select=1:ncol(x), track=TRUE){
-  changes_old <- attr(x, "changes")
-  old <- x
-  x<-kill.factors(x)
-  x.old<-x
-  previous.NA <- sapply(x, function(x) sum(is.na(x)))
-  previous.minobs <- sum(sapply(x, function(x) sum(!is.na(x))<min.obs))
-  candidate_variables <- apply(sapply(x, function(x) grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any) &
-    sapply(x, function(x) class(x)!="Date")
-  candidate_variables[-select] <- FALSE
-  x[, candidate_variables] <- lapply(x[, candidate_variables, drop = FALSE], function(x) fxd(x, use.probs=use.probs))
-  final.NA <- sapply(x, function(x) sum(is.na(x))) - previous.NA
-  final.minobs<-sum(sapply(x, function(x) sum(!is.na(x))<min.obs))
-  x[,((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs)]<-x.old[,((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs)]
-  print(paste(sum(sapply(x, function(x) sum(is.na(x)))-previous.NA), "new missing values generated"))
-  print(paste(sum((final.NA-previous.NA) > nrow(x)*max.NA), "variables excluded following max.NA criterion"))
-  print(paste(final.minobs-previous.minobs, "variables excluded following min.obs criterion"))
-  final_variables <- candidate_variables & !(((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs))
-  if(track & sum(final_variables)>0){
-    changes1 <- data.frame(variable=names(final_variables[final_variables]),
-                           observation="all",
-                           original=sapply(old[,final_variables, drop=FALSE], class),
-                           new="Date",
-                           fun="fix_dates",
-                           row.names=NULL)
-    changes2 <- do.call(rbind, lapply(changes1$variable, function(y){
-      observations <- rownames(x)[which(!(as.character(old[, y]) %in% as.character(x[, y])))]
-      tryCatch(data.frame(variable=y,
-                          observation=observations,
-                          original=old[observations, y],
-                          new=as.character(x[observations, y]),
-                          fun="fix_dates"), error = function(e) NULL)
-    }))
-    changes <- rbind(changes1, changes2)
-    if(!is.null(changes_old)){
-      attr(x, "changes") <- rbind(changes_old, changes)
-    } else {
-      attr(x, "changes") <- changes
+fix_dates <- function (x, max.NA=0.8, min.obs=nrow(x)*0.05, use.probs=TRUE, select=1:ncol(x), track=TRUE, parallel=TRUE){
+  if(parallel){
+    pplan <- attr(future::plan(), "call")
+    message("Your parallel configuration is ", if(!is.null(pplan)) pplan else "single core")
+    split_factor <- factor(sample(1:future::nbrOfWorkers(), dim(x)[1], replace=TRUE))
+    split_x <- split(x, split_factor)
+    suppressMessages(
+      split_proc <- future.apply::future_lapply(split_x, function(x) fix_dates(x, max.NA=max.NA, min.obs=min.obs, use.probs=use.probs, select=select, track=track, parallel=FALSE))
+    )
+    x <- unsplit(split_proc, f=split_factor)
+    changes_par <- do.call(rbind, lapply(split_proc, function(x) attributes(x)$changes))
+    attr(x, "changes") <- changes_par[!duplicated(changes_par),]
+    attr(x, "messages") <- colSums(do.call(rbind, lapply(split_proc, function(x) attributes(x)$messages)))/c(1, rep(future::nbrOfWorkers(), 2))
+  } else{
+    changes_old <- attr(x, "changes")
+    old <- x
+    x<-kill.factors(x)
+    x.old<-x
+    previous.NA <- sapply(x, function(x) sum(is.na(x)))
+    previous.minobs <- sum(sapply(x, function(x) sum(!is.na(x))<min.obs))
+    candidate_variables <- apply(sapply(x, function(x) grepl("(-{1}|/{1}).{1,4}(-{1}|/{1})", as.character(x))), 2, any) &
+      sapply(x, function(x) class(x)!="Date")
+    candidate_variables[-select] <- FALSE
+    x[, candidate_variables] <- lapply(x[, candidate_variables, drop = FALSE], function(x) fxd(x, use.probs=use.probs))
+    final.NA <- sapply(x, function(x) sum(is.na(x))) - previous.NA
+    final.minobs<-sum(sapply(x, function(x) sum(!is.na(x))<min.obs))
+    x[,((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs)]<-x.old[,((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs)]
+    messages <- data.frame(new_missings = sum(sapply(x, function(x) sum(is.na(x)))-previous.NA),
+                           excl_max_NA = sum((final.NA-previous.NA) > nrow(x)*max.NA),
+                           excl_minobs = final.minobs-previous.minobs)
+    attr(x, "messages") <- messages
+    final_variables <- candidate_variables & !(((final.NA-previous.NA) > nrow(x)*max.NA) | sapply(x, function(x) sum(!is.na(x))<min.obs))
+    if(track & sum(final_variables)>0){
+      changes1 <- data.frame(variable=names(final_variables[final_variables]),
+                             observation="all",
+                             original=sapply(old[,final_variables, drop=FALSE], class),
+                             new="Date",
+                             fun="fix_dates",
+                             row.names=NULL)
+      changes2 <- do.call(rbind, lapply(changes1$variable, function(y){
+        observations <- rownames(x)[which(!(as.character(old[, y]) %in% as.character(x[, y])))]
+        tryCatch(data.frame(variable=y,
+                            observation=observations,
+                            original=old[observations, y],
+                            new=as.character(x[observations, y]),
+                            fun="fix_dates"), error = function(e) NULL)
+        }))
+      changes <- rbind(changes1, changes2)
+      if(!is.null(changes_old)){
+        attr(x, "changes") <- rbind(changes_old, changes)
+        } else {
+          attr(x, "changes") <- changes
+        }
     }
   }
+  message(attr(x, "messages")[1], " new missing values generated")
+  message(attr(x, "messages")[2], " variables excluded following max.NA criterion")
+  message(attr(x, "messages")[3], " variables excluded following min.obs criterion")
   return(x)
 }
+
 
 #' Internal function for dates with text
 #'
@@ -383,38 +425,57 @@ fix_levels <- function(data, factor_name, method="dl", levels=NULL, plot=FALSE, 
 #' @param x A data.frame
 #' @param na.strings Strings to be considered NA
 #' @param track Track changes?
+#' @param parallel Should the computations be performed in parallel? Set up strategy first with future::plan()
+#' @importFrom future plan nbrOfWorkers
+#' @importFrom future.apply future_lapply
 #' @export
 #' @examples
 #' mydata <- data.frame(prueba = c("", NA, "A", 4, " ", "?", "-", "+"),
 #' casa = c("", 1, 2, 3, 4, " ", 6, 7))
 #' fix_NA(mydata)
-fix_NA <- function(x, na.strings=c("^$", "^ $", "^\\?$", "^-$", "^\\.$", "^NaN$", "^NULL$", "^N/A$"), track=TRUE){
-  changes_old <- attr(x, "changes")
-  string <- paste(na.strings, collapse="|")
-  output <- as.data.frame(lapply(x, function(x) {
-    kk <- class(x)
-    x <- gsub(string, NA, x)
-    tryCatch(eval(parse(text=paste("as.", kk, "(x)", sep=""))), error=function(e) as.character(x))
-  }))
-  if(track){
-    variables <- names(x)[which(sapply(x, function(x) sum(is.na(x))) != sapply(output, function(x) sum(is.na(x))))]
-    changes <- do.call(rbind, lapply(variables, function(y){
-      observations <- rownames(output)[which((!is.na(x[, y]) | is.nan(x[, y])) & is.na(output[, y]))]
-      data.frame(variable=y,
-                 observation=observations,
-                 original=x[observations, y],
-                 new=output[observations, y],
-                 fun="fix_NA",
-                 row.names=NULL)
-    }))
-    if(!is.null(changes_old)){
-      attr(output, "changes") <- rbind(changes_old, changes)
-    } else {
-      attr(output, "changes") <- changes
+fix_NA <- function(x, na.strings=c("^$", "^ $", "^\\?$", "^-$", "^\\.$", "^NaN$", "^NULL$", "^N/A$"), track=TRUE, parallel=TRUE){
+    changes_old <- attr(x, "changes")
+    old <- x
+    string <- paste(na.strings, collapse="|")
+    if(parallel){
+      pplan <- attr(future::plan(), "call")
+      message("Your parallel configuration is ", if(!is.null(pplan)) pplan else "single core")
+      if(dim(x)[1]/future::nbrOfWorkers() < 30) warning("Data splitted into many chunks. Please set fewer workers!")
+      split_factor <- factor(sample(1:future::nbrOfWorkers(), dim(x)[1], replace=TRUE))
+      split_x <- split(x, split_factor)
+      suppressMessages(
+        split_proc <- future.apply::future_lapply(split_x, function(x) fix_NA(x, na.strings=na.strings, track=track, parallel=FALSE))
+      )
+      x <- unsplit(split_proc, f=split_factor)
+    } else{
+      x <- as.data.frame(lapply(x, function(x) {
+        kk <- class(x)
+        x <- gsub(string, NA, x)
+        tryCatch(eval(parse(text=paste("as.", kk, "(x)", sep=""))), error=function(e) as.character(x))
+        }))
+      rownames(x) <- rownames(old)
     }
-  }
-  return(output)
+    if(track){
+      changes_ind <- which(v_df_changes(old, x), arr.ind = TRUE)
+      if(nrow(changes_ind) > 0){
+        changes <- data.frame(variable = colnames(old)[changes_ind[,2]],
+                              observation = rownames(old)[changes_ind[,1]],
+                              original = old[changes_ind],
+                              new = x[changes_ind],
+                              fun = "fix_NA")
+      } else{
+        changes <- NULL
+      }
+      if(!is.null(changes_old)){
+         attr(x, "changes") <- rbind(changes_old, changes)
+      } else {
+        attr(x, "changes") <- changes
+      }
+    }
+    return(x)
 }
+
+
 
 #' fix_concat
 #'
@@ -700,4 +761,14 @@ f_replace <- function(x, string, replacement, complete=TRUE, select=1:ncol(x), t
     }
   }
   x
+}
+
+#' Internal function to track_changes
+#'
+#' @description Function to track_changes
+#' @param x Original data.frame
+#' @param y New data.frame
+v_df_changes <- function(x, y){
+  v_identical <- Vectorize(identical, SIMPLIFY = TRUE, USE.NAMES=FALSE)
+  sapply(1:ncol(x), function(z) !v_identical(x[,z], y[,z]))
 }
