@@ -1,12 +1,13 @@
-406bc6ab17fe663af248b01e0eb4cce9 *DESCRIPTION
-463ef4d776b8a4c719714c4455f01a29 *NAMESPACE
+2f6914164375d89beb5ade0213e5d405 *DESCRIPTION
+49196499c372dd1e44918cc664cf6be9 *NAMESPACE
 2b2f9da762a581e2d1dbd0be56d3583d *NEWS
-d497c37a829671ced01979870d7365a5 *R/check_quality.R
-e42ddd98090e898d67f1f9a199a153e1 *R/descriptive.R
+e56975232002adc5bba282033ddf39ed *R/check_quality.R
+2451438c35391b1c95c361df478dd7e4 *R/descriptive.R
 df78af0e6227efd78ce266c504689e83 *R/fix_functions.R
 e9312c79e823d3167da0c1f8fe937e75 *R/mtcars_messy-data.R
 193198d7765a54df27fdb6db7ea53292 *README.md
-32763d235806f983085e1795219da799 *data/messy_mtcars.RData
+462c6f1fdd308253ec7d3cf37ae30c22 *data/messy_mtcars.RData
+bbe9a544fcc7e18e56fd0dde45e71252 *inst/CITATION
 9142cf3287ec91fe0d865474ccedb43d *man/GK_assoc.Rd
 aa48f4c87c72c9aeab4001861c3b6297 *man/antimoda.Rd
 f61f2cb4954698deedea01882f2e5433 *man/bivariate_outliers.Rd
@@ -25,6 +26,8 @@ fb580f87207d71846baf6b1b82c7551d *man/fix_numerics.Rd
 73e9d4be8bef0cbddea090f06768b9ec *man/forge.Rd
 0360c390929d78bcf1beea2354374bcb *man/fxd.Rd
 c0983e344d9a82d2fd75cf14c587b070 *man/good2go.Rd
+41712d7b93293fd28b524f5388ebe5cc *man/grapes-between-grapes.Rd
+6b7f6e3b4d88603d4605b2c17a50a3a1 *man/grapes-betweenNA-grapes.Rd
 abc04934bd6509f5c8bb60f8634131d4 *man/grapes-greater-than-NA-grapes.Rd
 c58a6c85d5b414592ba63c2d3f620392 *man/grapes-greater-than-equals-NA-grapes.Rd
 3d94c4f4c1c884dc65af50d065acc3d0 *man/grapes-less-than-NA-grapes.Rd
