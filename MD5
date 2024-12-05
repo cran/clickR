@@ -1,8 +1,8 @@
-2f6914164375d89beb5ade0213e5d405 *DESCRIPTION
-49196499c372dd1e44918cc664cf6be9 *NAMESPACE
-2b2f9da762a581e2d1dbd0be56d3583d *NEWS
-e56975232002adc5bba282033ddf39ed *R/check_quality.R
-2451438c35391b1c95c361df478dd7e4 *R/descriptive.R
+06da37dfdd7dc61bcac52211a36185fa *DESCRIPTION
+125b21a6d961b1f0f2824b648b4bb906 *NAMESPACE
+b006b26964505e426acae47a548d9af9 *NEWS
+8cd4f6c9e1fdf4396a12d83a5e93df4d *R/check_quality.R
+90bcf8a0ba23ea679aac8f91c7b99ae9 *R/descriptive.R
 df78af0e6227efd78ce266c504689e83 *R/fix_functions.R
 e9312c79e823d3167da0c1f8fe937e75 *R/mtcars_messy-data.R
 193198d7765a54df27fdb6db7ea53292 *README.md
@@ -61,3 +61,4 @@ afa2e118540911b18c395a4d1a79a718 *man/search_scripts.Rd
 ff2e083137b8681d7ea8c908a67de2e5 *man/v_df_changes.Rd
 804a3984a37c9b8511dd556885240d54 *man/workspace.Rd
 25bcaff7c6dd6c55b1361109cadb2e03 *man/workspace_sapply.Rd
+d58ea2d79fdd8cd63881f5b919341cdd *man/xscores.Rd
